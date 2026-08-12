@@ -1,8 +1,14 @@
 # Atlantic Alfea BSB-LAN pour Home Assistant
 
-Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa** via **BSB-LAN**.
+Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
 > Version actuelle : **1.3.0**
+
+## Matériel de référence
+
+Cette intégration a été développée et testée sur une **Atlantic Alféa Extensa Duo** équipée d'un régulateur / carte **RVS21.831F** (**famille 211, variante 127**).
+
+D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens RVS peuvent être compatibles, mais ils ne sont pas considérés comme validés tant que les paramètres BSB-LAN correspondants n'ont pas été vérifiés.
 
 ## Fonctionnalités
 

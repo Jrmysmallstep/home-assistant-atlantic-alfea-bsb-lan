@@ -1,0 +1,47 @@
+{
+  "title": "Atlantic Alfea BSB-LAN",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Détection automatique BSB-LAN",
+        "description": "{found} entités sur {total} ont été associées automatiquement. Paramètres optionnels absents : {missing_optional}. Validez pour continuer ou activez la configuration manuelle avancée.",
+        "data": {"manual_configuration": "Afficher la configuration manuelle avancée"}
+      },
+      "manual_v125": {
+        "title": "Compléter les entités requises",
+        "description": "La détection automatique n’a pas pu associer ces paramètres en toute sécurité : {parameters}. Seuls ces champs doivent être complétés."
+      },
+      "mapping_v125": {
+        "title": "Association des paramètres BSB-LAN",
+        "description": "Les entités détectées sont préremplies. Les libellés indiquent le numéro BSB et les sélecteurs sont limités aux domaines compatibles."
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Atlantic Alfea BSB-LAN",
+        "description": "La détection automatique conserve les associations valides et complète les paramètres manquants. Désactivez-la pour modifier toutes les associations manuellement.",
+        "data": {"automatic_detection": "Lancer la détection automatique"}
+      },
+      "reconfigure_manual_v125": {
+        "title": "Compléter les entités requises",
+        "description": "La détection automatique n’a pas pu associer ces paramètres : {parameters}."
+      }
+    },
+    "abort": {
+      "already_configured": "Atlantic Alfea BSB-LAN est déjà configuré.",
+      "reconfigure_successful": "La configuration a été mise à jour."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Seuils de surveillance",
+        "description": "Le paramètre BSB 2842 est prioritaire pour la détection des cycles courts. La valeur ci-dessous sert uniquement de secours. Le dégivrage normal et une charge ECS ne déclenchent pas l’alarme d’écart départ/consigne.",
+        "data": {
+          "short_cycle_minutes": "Cycle court — seuil de secours si 2842 est indisponible (minutes)",
+          "frequent_starts_per_hour": "Démarrages fréquents — seuil par heure",
+          "flow_gap_degrees": "Écart départ / consigne — seuil (°C)",
+          "flow_gap_duration_minutes": "Écart départ / consigne — temporisation (minutes)"
+        }
+      }
+    }
+  }
+}

@@ -45,6 +45,24 @@ La programmation horaire reste gérée par la PAC. L'intégration ne remplace pa
 
 L'intégration détecte automatiquement les paramètres connus. Les paramètres obligatoires qui ne peuvent pas être associés sans ambiguïté sont demandés pendant la configuration.
 
+## Installation via HACS (dépôt personnalisé)
+
+Le dépôt est compatible avec HACS en tant que **Custom Repository**.
+
+1. Dans Home Assistant, ouvrez **HACS**.
+2. Ouvrez le menu **⋮** en haut à droite puis **Custom repositories**.
+3. Ajoutez l'URL du dépôt :
+
+   `https://github.com/Jrmysmallstep/home-assistant-atlantic-alfea-bsb-lan`
+
+4. Sélectionnez le type **Integration**.
+5. Cliquez sur **Add**.
+6. Recherchez ensuite **Atlantic Alfea BSB-LAN** dans HACS et installez l'intégration.
+7. Redémarrez Home Assistant après l'installation.
+8. Ouvrez **Paramètres → Appareils et services → Ajouter une intégration** puis recherchez **Atlantic Alfea BSB-LAN**.
+
+HACS installera automatiquement l'intégration dans `custom_components/atlantic_alfea_controller/`.
+
 ## Documentation BSB-LAN
 
 La documentation officielle BSB-LAN est la référence principale pour l'installation, la configuration de la passerelle et la compréhension des paramètres du bus :
@@ -54,6 +72,8 @@ La documentation officielle BSB-LAN est la référence principale pour l'install
 Les numéros de paramètres et leur disponibilité peuvent varier selon le régulateur, le firmware et la configuration de l'installation. En cas de doute, vérifiez toujours le paramètre concerné dans la documentation BSB-LAN et directement sur votre régulateur.
 
 ## Installation manuelle
+
+Si vous ne souhaitez pas utiliser HACS :
 
 1. Copiez le dossier :
 

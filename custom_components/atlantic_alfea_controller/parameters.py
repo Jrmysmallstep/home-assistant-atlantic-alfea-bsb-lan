@@ -92,6 +92,7 @@ COMMAND_PARAMETERS: Final[tuple[ParameterSpec, ...]] = (
     ParameterSpec(CONF_DHW_MODE, 1600, False, ("select",), GROUP_COMMANDS),
     ParameterSpec(CONF_DHW_NOMINAL_SETPOINT, 1610, False, ("text", "number"), GROUP_COMMANDS),
     ParameterSpec(CONF_DHW_REDUCED_SETPOINT, 1612, False, ("text", "number"), GROUP_COMMANDS),
+    # Native temporary room-temperature override. Values validated on this RVS in cooling mode.
     ParameterSpec(CONF_OVERRIDE_DURATION_C1, 10990, False, ("text", "number", "sensor"), GROUP_COMMANDS),
     ParameterSpec(CONF_OVERRIDE_OFFSET_C1, 10991, False, ("text", "number"), GROUP_COMMANDS),
     ParameterSpec(CONF_OVERRIDE_DURATION_C2, 10992, False, ("text", "number", "sensor"), GROUP_COMMANDS),

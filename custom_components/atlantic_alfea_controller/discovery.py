@@ -154,6 +154,8 @@ def discover_parameter_entity(
     if current_entity and hass.states.get(current_entity) is not None:
         current_domain = current_entity.split(".", 1)[0]
         if current_domain in spec.domains and spec.group == GROUP_COMMANDS:
+            # Writable mappings remain pinned once validated so an automatic
+            # refresh can never redirect a command to another entity.
             return current_entity
 
     candidates = _scored_candidates(hass, spec)
@@ -166,6 +168,9 @@ def discover_parameter_entity(
     if first.score > second.score:
         return first.entity_id
 
+    # Read-only states and diagnostics are safe to associate when the tied
+    # candidates both match the exact BSB number. Writable command parameters
+    # remain unresolved in a tie to prevent writing to the wrong entity.
     if (
         spec.group != GROUP_COMMANDS
         and first.exact_id_match

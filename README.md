@@ -39,6 +39,14 @@ La programmation horaire reste gérée par la PAC. L'intégration ne remplace pa
 
 L'intégration détecte automatiquement les paramètres connus. Les paramètres obligatoires qui ne peuvent pas être associés sans ambiguïté sont demandés pendant la configuration.
 
+## Documentation BSB-LAN
+
+La documentation officielle BSB-LAN est la référence principale pour l'installation, la configuration de la passerelle et la compréhension des paramètres du bus :
+
+- **Documentation BSB-LAN en français :** https://docs.bsb-lan.de/fr/index.html
+
+Les numéros de paramètres et leur disponibilité peuvent varier selon le régulateur, le firmware et la configuration de l'installation. En cas de doute, vérifiez toujours le paramètre concerné dans la documentation BSB-LAN et directement sur votre régulateur.
+
 ## Installation manuelle
 
 1. Copiez le dossier :

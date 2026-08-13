@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import logging
+
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.config_entries import ConfigEntry
@@ -28,6 +31,9 @@ from .helpers import (
     track_entities,
 )
 from .polling import async_poll_parameters
+
+_LOGGER = logging.getLogger(__name__)
+_OVERRIDE_DEBOUNCE_SECONDS = 2.0
 
 _PROFILE_COMFORT = "comfort"
 _PROFILE_REDUCED = "reduced"
@@ -92,6 +98,9 @@ class AlfeaCircuitClimate(ClimateEntity):
         self.hass = hass
         self._entry = entry
         self._circuit = circuit
+        self._pending_target_temperature: float | None = None
+        self._pending_base_temperature: float | None = None
+        self._pending_override_task: asyncio.Task | None = None
         self._attr_name = f"Circuit {circuit}"
         self._attr_unique_id = f"{entry.entry_id}_circuit_{circuit}"
         self._attr_device_info = DeviceInfo(
@@ -217,6 +226,10 @@ class AlfeaCircuitClimate(ClimateEntity):
         mode = self._mode()
         if mode == MODE_OFF:
             return None
+
+        # Optimistic target while rapid +/- clicks are grouped.
+        if self._pending_target_temperature is not None:
+            return self._pending_target_temperature
 
         effective = state_float(
             self.hass,
@@ -355,15 +368,78 @@ class AlfeaCircuitClimate(ClimateEntity):
             )
         return float(round(duration))
 
-    async def async_set_temperature(self, **kwargs) -> None:
-        """Create the PAC native temporary override from a Climate target change.
+    def _cancel_pending_override(self) -> None:
+        """Cancel a not-yet-sent debounced override command."""
+        task = self._pending_override_task
+        self._pending_override_task = None
+        if task is not None and not task.done():
+            task.cancel()
 
-        Safety scope for the first implementation:
-        * only cooling is enabled, because this is the direction validated on the bus;
-        * only a colder target is accepted (BSB ``Plus froid`` / code 0);
-        * Comfort/Eco programmed setpoints are never modified;
-        * duration comes from the HA per-circuit selector (1–24 h).
-        """
+    async def _async_apply_pending_override(self) -> None:
+        """Wait 2 s after the last click, then send one native BSB override."""
+        try:
+            await asyncio.sleep(_OVERRIDE_DEBOUNCE_SECONDS)
+            requested = self._pending_target_temperature
+            base = self._pending_base_temperature
+            if requested is None or base is None:
+                return
+
+            override_active, _override_code, _override_text = self._override_state()
+            if override_active is True:
+                _LOGGER.warning(
+                    "Dérogation circuit %s non envoyée: une dérogation native est déjà active",
+                    self._circuit,
+                )
+                return
+            if override_active is None or self._mode() != MODE_COOL:
+                _LOGGER.warning(
+                    "Dérogation circuit %s non envoyée: état BSB ou mode PAC devenu indisponible",
+                    self._circuit,
+                )
+                return
+
+            offset = round(base - requested, 1)
+            if offset < 0.1 or offset > 5.0:
+                _LOGGER.warning(
+                    "Dérogation circuit %s non envoyée: écart %.1f °C hors plage",
+                    self._circuit, offset,
+                )
+                return
+
+            offset_key, offset_parameter = _PARAM[self._circuit]["override_offset"]
+            offset_entity = self._source(offset_key, offset_parameter)
+            if not offset_entity or offset_entity.split(".", 1)[0] not in {"number", "text"}:
+                _LOGGER.error("Paramètre BSB %s d'écart indisponible", offset_parameter)
+                return
+
+            duration = self._preferred_override_duration()
+            duration_key, duration_parameter = _PARAM[self._circuit]["override_duration"]
+            duration_entity = self._source(duration_key, duration_parameter)
+            if not duration_entity or duration_entity.split(".", 1)[0] not in {"number", "text"}:
+                _LOGGER.error("Paramètre BSB %s de durée indisponible", duration_parameter)
+                return
+
+            await async_set_numeric_entity(self.hass, offset_entity, offset)
+            await async_set_numeric_entity(self.hass, duration_entity, duration)
+            override_entity, plus_cold_option = self._override_option(0)
+            await async_select_option(self.hass, override_entity, plus_cold_option)
+            await async_poll_parameters(
+                self.hass,
+                (offset_parameter, duration_parameter, _PARAM[self._circuit]["override"][1],
+                 _PARAM[self._circuit]["effective_setpoint"]),
+            )
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            _LOGGER.exception("Échec de l'envoi de la dérogation native du circuit %s", self._circuit)
+        finally:
+            self._pending_override_task = None
+            self._pending_target_temperature = None
+            self._pending_base_temperature = None
+            self.async_write_ha_state()
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        """Aggregate Climate clicks for 2 s, then create one native override."""
         temperature = kwargs.get("temperature")
         if temperature is None:
             return
@@ -373,16 +449,15 @@ class AlfeaCircuitClimate(ClimateEntity):
             raise HomeAssistantError("La PAC est arrêtée : aucune dérogation n’a été envoyée.")
         if mode != MODE_COOL:
             raise HomeAssistantError(
-                "La dérogation depuis Home Assistant est volontairement limitée au "
-                "rafraîchissement pour ce premier test. Le comportement chauffage sera "
-                "validé séparément en saison de chauffe."
+                "La dérogation depuis Home Assistant reste limitée au rafraîchissement "
+                "tant que le comportement chauffage n’a pas été validé sur le bus."
             )
 
         override_active, _override_code, _override_text = self._override_state()
         if override_active is True:
             raise HomeAssistantError(
                 "Une dérogation native est déjà active. Annule-la avec le bouton du "
-                "circuit avant de choisir une nouvelle consigne pour ce premier test."
+                "circuit avant de choisir une nouvelle consigne."
             )
         if override_active is None:
             raise HomeAssistantError(
@@ -390,60 +465,52 @@ class AlfeaCircuitClimate(ClimateEntity):
                 "commande n’a été envoyée."
             )
 
-        base = self.target_temperature
-        if base is None:
-            raise HomeAssistantError(
-                "Consigne effective 8741/8771 indisponible : impossible de calculer "
-                "l’écart de dérogation en sécurité."
+        if self._pending_base_temperature is None:
+            base = state_float(
+                self.hass,
+                self._source(
+                    f"effective_setpoint_c{self._circuit}",
+                    _PARAM[self._circuit]["effective_setpoint"],
+                ),
             )
+            if base is None:
+                raise HomeAssistantError(
+                    "Consigne effective 8741/8771 indisponible : impossible de calculer "
+                    "l’écart de dérogation en sécurité."
+                )
+            self._pending_base_temperature = base
+        else:
+            base = self._pending_base_temperature
 
         requested = round_temperature_step(float(temperature), TEMPERATURE_STEP)
-        if abs(requested - base) < 0.05:
-            return
         if requested > base:
             raise HomeAssistantError(
-                "Pour cette première version de test, seule une consigne plus froide "
-                "est autorisée. Le sens ‘Plus chaud’ n’a pas encore été validé sur le bus."
+                "Seule une consigne plus froide est actuellement autorisée. "
+                "Le sens ‘Plus chaud’ n’a pas encore été validé sur le bus."
             )
 
         offset = round(base - requested, 1)
-        if offset < 0.1 or offset > 5.0:
+        if offset > 5.0:
             raise HomeAssistantError(
-                f"Écart demandé {offset:.1f} °C hors plage de sécurité 0,1–5,0 °C. "
-                "Aucune commande n’a été envoyée."
+                f"Écart demandé {offset:.1f} °C hors plage de sécurité 0,1–5,0 °C."
             )
+        if offset < 0.1:
+            self._cancel_pending_override()
+            self._pending_target_temperature = None
+            self._pending_base_temperature = None
+            self.async_write_ha_state()
+            return
 
-        offset_key, offset_parameter = _PARAM[self._circuit]["override_offset"]
-        offset_entity = self._source(offset_key, offset_parameter)
-        if not offset_entity or offset_entity.split(".", 1)[0] not in {"number", "text"}:
-            raise HomeAssistantError(
-                f"Le paramètre d’écart BSB {offset_parameter} n’a pas été détecté "
-                "comme entité number/text modifiable. Relance la détection BSB-LAN."
-            )
-
-        duration = self._preferred_override_duration()
-        duration_key, duration_parameter = _PARAM[self._circuit]["override_duration"]
-        duration_entity = self._source(duration_key, duration_parameter)
-        if not duration_entity or duration_entity.split(".", 1)[0] not in {"number", "text"}:
-            raise HomeAssistantError(
-                f"Le paramètre de durée BSB {duration_parameter} n’a pas été détecté "
-                "comme entité number/text modifiable. Relance la détection BSB-LAN."
-            )
-
-        # Sequence observed from the native room unit: neutral state, offset, duration,
-        # then activation of BSB 'Plus froid'. Comfort/Eco remain untouched.
-        await async_set_numeric_entity(self.hass, offset_entity, offset)
-        await async_set_numeric_entity(self.hass, duration_entity, duration)
-        override_entity, plus_cold_option = self._override_option(0)
-        await async_select_option(self.hass, override_entity, plus_cold_option)
-
-        await async_poll_parameters(
-            self.hass,
-            (offset_parameter, duration_parameter, _PARAM[self._circuit]["override"][1],
-             _PARAM[self._circuit]["effective_setpoint"]),
+        self._pending_target_temperature = requested
+        self._cancel_pending_override()
+        self._pending_override_task = self.hass.async_create_task(
+            self._async_apply_pending_override(),
+            f"alfea_override_c{self._circuit}_debounce",
         )
+        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
+        self.async_on_remove(self._cancel_pending_override)
         data = self._entry.data
         tracked: list[str | None] = [
             data["heat_mode_c1"], data["cool_mode_c1"],

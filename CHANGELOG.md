@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.1
+
+Version de consolidation de la branche 1.3 pour validation via HACS.
+
+### Corrigé
+
+- Classement plus clair des entités avec un préfixe cohérent `Circuit 1` / `Circuit 2`.
+- Temporisation de 2 secondes après le dernier clic `+/- 0,5 °C` dans le Climate ; chaque nouveau clic relance les 2 s et une seule commande BSB finale est envoyée.
+- Le `water_heater` n'affiche plus le code numérique brut dans `etat_ecs_bsb` : `Charge, température nominale` remplace `99 - Charge, température nominale`.
+
+### HACS / Home Assistant
+
+- Ajout d'une icône locale pour HACS et Home Assistant 2026.3+.
+- Ajout des liens `documentation` et `issue_tracker` au manifeste.
+
 ## 1.3.0
 
 Première publication GitHub de la branche 1.3.

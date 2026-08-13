@@ -33,12 +33,12 @@ class SensorDescription:
 
 DESCRIPTIONS = (
     SensorDescription("pac_state", "PAC — État général", "mdi:heat-pump", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_state_c1", "Chauffage circuit 1 — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_state_c2", "Chauffage circuit 2 — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
-    SensorDescription("cool_state_c1", "Rafraîchissement circuit 1 — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
-    SensorDescription("cool_state_c2", "Rafraîchissement circuit 2 — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_flow_target_c1", "Chauffage circuit 1 — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
-    SensorDescription("heat_flow_target_c2", "Chauffage circuit 2 — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
+    SensorDescription("heat_state_c1", "Circuit 1 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
+    SensorDescription("heat_state_c2", "Circuit 2 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
+    SensorDescription("cool_state_c1", "Circuit 1 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
+    SensorDescription("cool_state_c2", "Circuit 2 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
+    SensorDescription("heat_flow_target_c1", "Circuit 1 — Chauffage — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
+    SensorDescription("heat_flow_target_c2", "Circuit 2 — Chauffage — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
     SensorDescription("dhw_state", "ECS — État", "mdi:water-boiler", numeric=False, clean_bsb_code=True),
     SensorDescription(
         "dhw_nominal_setpoint",

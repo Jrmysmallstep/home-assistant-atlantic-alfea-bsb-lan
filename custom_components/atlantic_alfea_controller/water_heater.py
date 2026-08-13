@@ -19,6 +19,7 @@ from .const import (
 )
 from .helpers import (
     async_select_option,
+    clean_bsb_status,
     source_entity,
     state_float,
     state_is_on,
@@ -142,7 +143,7 @@ class AlfeaWaterHeater(WaterHeaterEntity):
         return {
             "production": production,
             "demande_ecs": getattr(self._monitor, "dhw_charging", None),
-            "etat_ecs_bsb": state_value(self.hass, self._source("dhw_state", 8003)),
+            "etat_ecs_bsb": clean_bsb_status(state_value(self.hass, self._source("dhw_state", 8003))),
             "etat_generateur_bsb": state_value(self.hass, self._source("pac_state", 8006)),
             "consigne_nominale": state_float(self.hass, self._source("dhw_nominal_setpoint", 1610)),
             "consigne_reduite": state_float(self.hass, self._source("dhw_reduced_setpoint", 1612)),

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2
+
+Correctif visuel de la V1.3.1.
+
+- Remplacement de l’icône provisoire par l’icône Atlantic Alfea BSB-LAN définie pour le projet.
+- Ajout du logo Atlantic Alfea BSB-LAN correspondant.
+- Ressources de marque installées à la racine `brand/` et dans `custom_components/atlantic_alfea_controller/brand/` pour HACS / Home Assistant.
+- Aucun changement de la logique PAC, ECS ou dérogation par rapport à la V1.3.1.
+
 ## 1.3.1
 
 Version de consolidation de la branche 1.3 pour validation via HACS.

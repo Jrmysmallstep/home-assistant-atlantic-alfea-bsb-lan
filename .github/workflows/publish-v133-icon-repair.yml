@@ -1,0 +1,70 @@
+name: Publish v1.3.3 icon repair
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v133-icon-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rebuild and validate icon
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import base64, hashlib, json, struct
+
+          parts = []
+          for path in sorted(Path('.brand_fix_v133_small').glob('icon.b64.*')):
+              lines = [line.strip() for line in path.read_text().splitlines() if line.strip() and not line.startswith('#')]
+              parts.extend(lines)
+          data = base64.b64decode(''.join(parts), validate=True)
+          assert data[:8] == b'\x89PNG\r\n\x1a\n'
+          assert struct.unpack('>II', data[16:24]) == (128, 128)
+          assert hashlib.sha256(data).hexdigest() == 'b7c74182d52377a906e81fcc98828d61a9b912d6e362f70218e4cf6f67e09482'
+          for target in [Path('brand/icon.png'), Path('custom_components/atlantic_alfea_controller/brand/icon.png')]:
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+
+          manifest = Path('custom_components/atlantic_alfea_controller/manifest.json')
+          meta = json.loads(manifest.read_text())
+          meta['version'] = '1.3.3'
+          manifest.write_text(json.dumps(meta, ensure_ascii=False, indent=2) + '\n')
+
+          readme = Path('README.md')
+          text = readme.read_text().replace('> Version actuelle : **1.3.2**', '> Version actuelle : **1.3.3**')
+          text = text.replace('La V1.3.2 utilise', 'La V1.3.3 utilise').replace('Limitation de sécurité de la V1.3.2', 'Limitation de sécurité de la V1.3.3')
+          readme.write_text(text)
+
+          changelog = Path('CHANGELOG.md')
+          old = changelog.read_text()
+          entry = '''## 1.3.3\n\nCorrectif graphique HACS / Home Assistant.\n\n- Remplacement de l’icône erronée par l’icône validée issue du fichier fourni pour le projet.\n- Validation PNG et empreinte SHA-256 avant publication.\n- Aucun changement fonctionnel PAC, ECS ou dérogation.\n\n'''
+          if '## 1.3.3' not in old:
+              changelog.write_text(old.replace('# Changelog\n\n', '# Changelog\n\n' + entry, 1))
+          PY
+          python -m compileall -q custom_components/atlantic_alfea_controller
+      - name: Commit repaired icon
+        shell: bash
+        run: |
+          rm -rf .brand_fix_v133_small .brand_fix_v133 .brand_fix_v133_exact .brand_src .github/assets-v133 || true
+          rm -f brand/.asset-repair-plan brand/.fix-in-progress brand/README-assets.txt brand/icon-source-note.txt brand/icon-valid.txt brand/logo-valid.txt || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Release v1.3.3: repair HACS and Home Assistant icon"
+          git push origin main
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create V1.3.3 --target main --title "Atlantic Alfea BSB-LAN v1.3.3" --notes "Correctif graphique : icône HACS / Home Assistant remplacée par une version PNG valide issue du visuel fourni. Aucun changement fonctionnel PAC, ECS ou dérogation."

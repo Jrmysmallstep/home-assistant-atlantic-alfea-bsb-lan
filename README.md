@@ -2,7 +2,7 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Version actuelle : **1.3.2**
+> Version actuelle : **1.3.3**
 
 ## Matériel de référence
 
@@ -27,9 +27,9 @@ D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens 
 
 ## Dérogation native
 
-La V1.3.2 utilise les paramètres natifs de dérogation du régulateur au lieu de modifier les programmations Confort / Eco.
+La V1.3.3 utilise les paramètres natifs de dérogation du régulateur au lieu de modifier les programmations Confort / Eco.
 
-**Limitation de sécurité de la V1.3.2 :** la création d'une dérogation depuis l'entité Climate Home Assistant est volontairement limitée au **rafraîchissement** et à une demande **plus froide**. Le comportement équivalent en chauffage n'a pas encore été validé sur le bus et n'est donc pas activé dans cette version.
+**Limitation de sécurité de la V1.3.3 :** la création d'une dérogation depuis l'entité Climate Home Assistant est volontairement limitée au **rafraîchissement** et à une demande **plus froide**. Le comportement équivalent en chauffage n'a pas encore été validé sur le bus et n'est donc pas activé dans cette version.
 
 L'annulation d'une dérogation native est disponible lorsque les paramètres BSB correspondants sont détectés comme modifiables.
 

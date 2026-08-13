@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.3
+
+Correctif graphique HACS / Home Assistant.
+
+- Remplacement de l’icône erronée par l’icône validée issue du fichier fourni pour le projet.
+- Validation PNG et empreinte SHA-256 avant publication.
+- Aucun changement fonctionnel PAC, ECS ou dérogation.
+
 ## 1.3.2
 
 Correctif visuel de la V1.3.1.

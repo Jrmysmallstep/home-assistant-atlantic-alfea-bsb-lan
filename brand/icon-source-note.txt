@@ -1,0 +1,3 @@
+Validated source supplied by project owner on 2026-08-13.
+PNG dimensions: 256x256.
+Source SHA-256: f7bf70fbbd49f5c41bef3a4bea6aec89a191c925628aa7811522ccaca2ea2208

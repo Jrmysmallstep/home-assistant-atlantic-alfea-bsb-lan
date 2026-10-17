@@ -19,6 +19,7 @@ from .helpers import (
     async_select_option,
     async_set_numeric_entity,
     derive_global_mode,
+    is_protection,
     round_temperature_step,
     source_entity,
     split_bsb_status,
@@ -122,6 +123,14 @@ class AlfeaCircuitClimate(ClimateEntity):
             state_value(self.hass, data["cool_mode_c2"]),
         )
 
+    def _circuit_in_protection(self, mode: str) -> bool:
+        """Check circuit-specific protection, independently of the global PAC season."""
+        if mode not in (MODE_HEAT, MODE_COOL):
+            return False
+        prefix = "heat" if mode == MODE_HEAT else "cool"
+        key = f"{prefix}_mode_c{self._circuit}"
+        return is_protection(state_value(self.hass, self._entry.data.get(key)))
+
     def _circuit_status(self, mode: str) -> str | None:
         if mode not in (MODE_HEAT, MODE_COOL):
             return None
@@ -162,7 +171,10 @@ class AlfeaCircuitClimate(ClimateEntity):
 
     @property
     def hvac_mode(self) -> HVACMode:
-        return {MODE_HEAT: HVACMode.HEAT, MODE_COOL: HVACMode.COOL, MODE_OFF: HVACMode.OFF}[self._mode()]
+        mode = self._mode()
+        if self._circuit_in_protection(mode):
+            return HVACMode.OFF
+        return {MODE_HEAT: HVACMode.HEAT, MODE_COOL: HVACMode.COOL, MODE_OFF: HVACMode.OFF}[mode]
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -175,7 +187,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         target (8741/8771).
         """
         mode = self._mode()
-        if mode == MODE_OFF:
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
             return HVACAction.OFF
 
         circuit_state = self._circuit_status(mode)
@@ -224,7 +236,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         that best matches the PAC's own screen.
         """
         mode = self._mode()
-        if mode == MODE_OFF:
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
             return None
 
         # Optimistic target while rapid +/- clicks are grouped.
@@ -251,9 +263,10 @@ class AlfeaCircuitClimate(ClimateEntity):
     @property
     def extra_state_attributes(self) -> dict[str, object | None]:
         mode = self._mode()
-        if mode == MODE_OFF:
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
             return {
-                "etat_circuit_bsb": None,
+                "etat_circuit_bsb": self._circuit_status(mode),
+                "mode_circuit": "protection" if self._circuit_in_protection(mode) else "arrêt",
                 "regime_consigne": None,
                 "ecriture_consigne_autorisee": False,
                 "parametre_consigne_actif": None,
@@ -445,8 +458,8 @@ class AlfeaCircuitClimate(ClimateEntity):
             return
 
         mode = self._mode()
-        if mode == MODE_OFF:
-            raise HomeAssistantError("La PAC est arrêtée : aucune dérogation n’a été envoyée.")
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
+            raise HomeAssistantError("Circuit en protection ou PAC arrêtée : aucune dérogation envoyée.")
         if mode != MODE_COOL:
             raise HomeAssistantError(
                 "La dérogation depuis Home Assistant reste limitée au rafraîchissement "

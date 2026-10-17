@@ -33,6 +33,7 @@ async def fast_sleep(_seconds):
 class Fake:
     def __init__(self, states, fail_at=None, confirm=True):
         self.values = states.copy()
+        self.hass = self
         self._entry = SimpleNamespace(data={k:k for k in states})
         self._command_lock = asyncio.Lock()
         self._last_known_mode = MODE_HEAT

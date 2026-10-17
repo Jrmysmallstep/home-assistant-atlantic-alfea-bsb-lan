@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -10,7 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import BSB_AUTO, BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, SELECT_OPTIONS
+from .const import BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, SELECT_OPTIONS
 from .helpers import async_select_option, derive_global_mode, is_enabled, is_protection, state_value, track_entities
 
 _OPTION_TO_MODE = {"Off": MODE_OFF, "Chauffage": MODE_HEAT, "Refroidissement": MODE_COOL}
@@ -33,6 +35,7 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
         self.hass = hass
         self._entry = entry
         self._last_known_mode: str | None = None
+        self._command_lock = asyncio.Lock()
         self._attr_unique_id = f"{entry.entry_id}_global_mode"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
@@ -69,65 +72,71 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
             state_value(self.hass, data["cool_mode_c2"]),
         )
 
-    async def async_select_option(self, option: str) -> None:
-        """Switch season without enabling circuits that are already protected.
+    async def _write_verified(self, entity_id: str, option: str) -> None:
+        """Write one mode and wait for source state feedback before continuing."""
+        await async_select_option(self.hass, entity_id, option)
+        expected_protection = option == BSB_PROTECTION
+        for _ in range(20):
+            value = state_value(self.hass, entity_id)
+            if value is not None and is_protection(value) == expected_protection:
+                return
+            await asyncio.sleep(0.5)
+        raise HomeAssistantError(
+            f"BSB-LAN n'a pas confirmé {option} sur {entity_id} dans les 10 secondes. "
+            "Commande interrompue, vérifier les états réels des circuits."
+        )
 
-        The global selector is not an independent season switch on this RVS.
-        Only a circuit already enabled in the previous season is transferred.
+    async def async_select_option(self, option: str) -> None:
+        """Apply only verified changes; never enable the other season automatically.
+
+        Changing season requires a controller-level interlock which has not yet
+        been identified. Stopping active circuits is supported; enabling the
+        opposite season in the same request is intentionally blocked.
         """
         if option not in _OPTION_TO_MODE:
             raise HomeAssistantError(f"Option de saison inconnue : {option}")
+        if self._command_lock.locked():
+            raise HomeAssistantError("Une commande de mode global est déjà en cours.")
 
-        data = self._entry.data
-        readings = {
-            key: state_value(self.hass, data[key])
-            for key in ("heat_mode_c1", "cool_mode_c1", "heat_mode_c2", "cool_mode_c2")
-        }
-        if any(value is None for value in readings.values()):
-            raise HomeAssistantError(
-                "États des quatre circuits indisponibles : aucune commande envoyée."
-            )
-        heat_active = {n for n in (1, 2) if is_enabled(readings[f"heat_mode_c{n}"])}
-        cool_active = {n for n in (1, 2) if is_enabled(readings[f"cool_mode_c{n}"])}
-        if heat_active and cool_active:
-            raise HomeAssistantError(
-                "Chauffage et rafraîchissement simultanément actifs : "
-                "commande bloquée, vérifier les circuits BSB-LAN."
-            )
-        target = _OPTION_TO_MODE[option]
-        if target == MODE_OFF:
+        async with self._command_lock:
+            data = self._entry.data
+            keys = ("heat_mode_c1", "cool_mode_c1", "heat_mode_c2", "cool_mode_c2")
+            readings = {key: state_value(self.hass, data[key]) for key in keys}
+            if any(value is None for value in readings.values()):
+                raise HomeAssistantError("État d'un circuit indisponible : aucune commande envoyée.")
+
+            heat_active = {n for n in (1, 2) if is_enabled(readings[f"heat_mode_c{n}"])}
+            cool_active = {n for n in (1, 2) if is_enabled(readings[f"cool_mode_c{n}"])}
+            if heat_active and cool_active:
+                raise HomeAssistantError(
+                    "Chauffage et rafraîchissement simultanément actifs : commande bloquée."
+                )
+
+            target = _OPTION_TO_MODE[option]
+            current = MODE_HEAT if heat_active else MODE_COOL if cool_active else MODE_OFF
+            if target == current and target != MODE_OFF:
+                return
+
+            if target != MODE_OFF:
+                if current == MODE_OFF:
+                    raise HomeAssistantError(
+                        "Tous les circuits sont en Protection : saison non confirmée. "
+                        "Aucune activation automatique autorisée."
+                    )
+                raise HomeAssistantError(
+                    "Commutation Chauffage/Refroidissement temporairement bloquée : "
+                    "le verrouillage saisonnier du RVS et son délai de sécurité "
+                    "ne sont pas encore validés. Aucune commande envoyée."
+                )
+
+            # Off acts on circuit modes only. Season memory is retained.
+            # Stop one circuit at a time and confirm actual source feedback.
             for n in (1, 2):
                 for prefix in ("heat", "cool"):
                     key = f"{prefix}_mode_c{n}"
                     if not is_protection(readings[key]):
-                        await async_select_option(self.hass, data[key], BSB_PROTECTION)
+                        await self._write_verified(data[key], BSB_PROTECTION)
             self.async_write_ha_state()
-            return
-
-        old_mode = MODE_HEAT if heat_active else MODE_COOL if cool_active else MODE_OFF
-        if old_mode == MODE_OFF:
-            raise HomeAssistantError(
-                "Les deux circuits sont en Protection. Aucun paramètre natif de "
-                "saison indépendante n'est identifié : aucune commutation envoyée. "
-                "Activer explicitement un circuit dans la saison souhaitée."
-            )
-        if old_mode == target:
-            return
-
-        active_circuits = heat_active if old_mode == MODE_HEAT else cool_active
-        old_prefix = "heat" if old_mode == MODE_HEAT else "cool"
-        new_prefix = "heat" if target == MODE_HEAT else "cool"
-        # First stop all previously active circuits. The RVS remains responsible
-        # for the physical heating/cooling changeover delay (BSB 913).
-        for n in (1, 2):
-            old_key = f"{old_prefix}_mode_c{n}"
-            if n in active_circuits:
-                await async_select_option(self.hass, data[old_key], BSB_PROTECTION)
-        # Only explicitly active circuits transfer to the new season.
-        for n in sorted(active_circuits):
-            await async_select_option(self.hass, data[f"{new_prefix}_mode_c{n}"], BSB_AUTO)
-        self._last_known_mode = target
-        self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
         previous = await self.async_get_last_state()

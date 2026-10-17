@@ -358,8 +358,7 @@ class AlfeaCircuitSeasonStateSensor(SensorEntity):
         global_select = er.async_get(self.hass).async_get_entity_id(
             "select", DOMAIN, f"{self._entry.entry_id}_global_mode"
         )
-        tracked = [
-            global_select,
+        tracked = [global_select] + [
             data.get(f"{prefix}_mode_c{circuit}")
             for prefix in ("heat", "cool")
             for circuit in (1, 2)

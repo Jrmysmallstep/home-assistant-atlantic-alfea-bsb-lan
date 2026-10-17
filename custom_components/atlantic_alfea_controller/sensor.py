@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_ids, pac_clock_datetime
 from .const import DOMAIN, MODE_COOL, MODE_HEAT
-from .helpers import clean_bsb_status, derive_global_mode, is_protection, source_entity, split_bsb_status, state_float, state_value, track_entities
+from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
 
 
@@ -321,13 +321,7 @@ class AlfeaCircuitSeasonStateSensor(SensorEntity):
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
 
     def _season(self) -> str:
-        data = self._entry.data
-        return derive_global_mode(
-            state_value(self.hass, data["heat_mode_c1"]),
-            state_value(self.hass, data["cool_mode_c1"]),
-            state_value(self.hass, data["heat_mode_c2"]),
-            state_value(self.hass, data["cool_mode_c2"]),
-        )
+        return effective_season(self.hass, self._entry)
 
     @property
     def native_value(self) -> str | None:

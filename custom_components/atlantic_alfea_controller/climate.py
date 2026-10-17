@@ -19,6 +19,7 @@ from .helpers import (
     async_select_option,
     async_set_numeric_entity,
     derive_global_mode,
+    effective_season,
     is_protection,
     round_temperature_step,
     source_entity,
@@ -115,13 +116,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         return source_entity(self.hass, self._entry, key, parameter)
 
     def _mode(self) -> str:
-        data = self._entry.data
-        return derive_global_mode(
-            state_value(self.hass, data["heat_mode_c1"]),
-            state_value(self.hass, data["cool_mode_c1"]),
-            state_value(self.hass, data["heat_mode_c2"]),
-            state_value(self.hass, data["cool_mode_c2"]),
-        )
+        return effective_season(self.hass, self._entry)
 
     def _circuit_in_protection(self, mode: str) -> bool:
         """Check circuit-specific protection, independently of the global PAC season."""

@@ -69,6 +69,7 @@ class Tests(unittest.TestCase):
         exec(CODE, namespace)
         Fake._write_verified = namespace["_write_verified"]
         Fake.async_select_option = namespace["async_select_option"]
+        namespace["async_select_option"] = write  # Keep the service mock separate from the entity method
 
     def execute(self, initial, option, expected, fails=False, **kwargs):
         inst = Fake(initial, **kwargs)

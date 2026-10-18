@@ -126,7 +126,7 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
 
             if target != MODE_OFF:
                 if current == MODE_OFF and (
-                    target == self._last_known_mode or target == self._selected_mode
+                    target == self._last_known_mode or target == getattr(self, "_selected_mode", None)
                 ):
                     # Explicitly reselect the remembered season without starting
                     # either circuit. Each climate controls its own activation.

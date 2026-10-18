@@ -130,7 +130,12 @@ class AlfeaProgrammedSetpointNumber(NumberEntity):
 
     @property
     def available(self) -> bool:
-        return self._source() is not None and self.native_value is not None
+        source = self._source()
+        return (
+            source is not None
+            and source.split(".", 1)[0] in ("number", "text")
+            and self.native_value is not None
+        )
 
     @property
     def extra_state_attributes(self) -> dict[str, int]:

@@ -115,6 +115,8 @@ class AlfeaProgrammedSetpointNumber(NumberEntity):
         self.hass = hass
         self._entry = entry
         circuit, season, profile, key, parameter = item
+        self._attr_native_min_value = 7.0
+        self._attr_native_max_value = 35.0 if season == "Chauffage" else 30.0
         self._key = key
         self._parameter = parameter
         self._attr_unique_id = f"{entry.entry_id}_control_{key}"
@@ -148,8 +150,14 @@ class AlfeaProgrammedSetpointNumber(NumberEntity):
                 f"Paramètre BSB {self._parameter} non disponible en écriture."
             )
         value = float(value)
-        if not 5.0 <= value <= 35.0 or round(value * 2) != value * 2:
-            raise HomeAssistantError("Consigne attendue de 5 à 35 °C, par pas de 0,5 °C.")
+        if (
+            not self.native_min_value <= value <= self.native_max_value
+            or abs(round(value * 2) - value * 2) > 1e-6
+        ):
+            raise HomeAssistantError(
+                f"Consigne attendue de {self.native_min_value:g} à "
+                f"{self.native_max_value:g} °C, par pas de 0,5 °C."
+            )
         try:
             await async_set_numeric_entity(self.hass, source, value)
         except Exception as exc:

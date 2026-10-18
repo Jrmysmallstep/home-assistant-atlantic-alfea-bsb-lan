@@ -196,10 +196,23 @@ class AlfeaCircuitClimate(ClimateEntity):
             state_value(self.hass, data["cool_mode_c2"]),
         )
         if observed != requested_season:
-            raise HomeAssistantError(
-                "Saison demandée non confirmée par les circuits BSB-LAN : "
-                "activation refusée. La carte ne change jamais la saison PAC."
+            # With all circuits in Protection, the global HA selector keeps the
+            # last known season. This is a user-selected operational setting,
+            # not a physical season acknowledgement from the RVS regulator.
+            if observed != MODE_OFF or self._mode() != requested_season:
+                raise HomeAssistantError(
+                    "La saison demandée ne correspond pas au mode global HA : "
+                    "activation refusée."
+                )
+            global_id = er.async_get(self.hass).async_get_entity_id(
+                "select", DOMAIN, f"{self._entry.entry_id}_global_mode"
             )
+            global_value = state_value(self.hass, global_id)
+            expected_option = "Chauffage" if requested_season == MODE_HEAT else "Refroidissement"
+            if global_value != expected_option:
+                raise HomeAssistantError(
+                    "Mode global absent ou non confirmé : activation refusée."
+                )
 
         selected_id = heat_id if requested_season == MODE_HEAT else cool_id
         opposite_state = cool_state if requested_season == MODE_HEAT else heat_state

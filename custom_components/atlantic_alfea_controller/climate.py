@@ -14,7 +14,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, TEMPERATURE_STEP
+from .const import BSB_AUTO, BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, TEMPERATURE_STEP
 from .helpers import (
     async_select_option,
     async_set_numeric_entity,
@@ -162,7 +162,46 @@ class AlfeaCircuitClimate(ClimateEntity):
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
-        return [self.hvac_mode]
+        """Allow independent circuit protection without changing PAC season."""
+        mode = self._mode()
+        if mode == MODE_HEAT:
+            return [HVACMode.OFF, HVACMode.HEAT]
+        if mode == MODE_COOL:
+            return [HVACMode.OFF, HVACMode.COOL]
+        return [HVACMode.OFF]
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Switch this circuit between Automatic and Protection in current season."""
+        season = self._mode()
+        if season not in (MODE_HEAT, MODE_COOL):
+            raise HomeAssistantError(
+                "Saison de la PAC inconnue : commande du circuit refusée."
+            )
+        expected = HVACMode.HEAT if season == MODE_HEAT else HVACMode.COOL
+        if hvac_mode not in (HVACMode.OFF, expected):
+            raise HomeAssistantError(
+                "Le mode demandé ne correspond pas à la saison actuelle de la PAC."
+            )
+        prefix = "heat" if season == MODE_HEAT else "cool"
+        other = "cool" if season == MODE_HEAT else "heat"
+        data = self._entry.data
+        target_entity = data[f"{prefix}_mode_c{self._circuit}"]
+        other_entity = data[f"{other}_mode_c{self._circuit}"]
+        target_state = state_value(self.hass, target_entity)
+        other_state = state_value(self.hass, other_entity)
+        if target_state is None or other_state is None:
+            raise HomeAssistantError(
+                "État BSB-LAN du circuit indisponible : aucune commande envoyée."
+            )
+        if not is_protection(other_state):
+            raise HomeAssistantError(
+                "Le mode de la saison opposée est actif : commande bloquée."
+            )
+        target_option = BSB_PROTECTION if hvac_mode == HVACMode.OFF else BSB_AUTO
+        if (hvac_mode == HVACMode.OFF) == is_protection(target_state):
+            return
+        await async_select_option(self.hass, target_entity, target_option)
+        self.async_write_ha_state()
 
     @property
     def hvac_mode(self) -> HVACMode:

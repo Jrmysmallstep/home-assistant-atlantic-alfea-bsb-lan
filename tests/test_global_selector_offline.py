@@ -30,11 +30,13 @@ namespace = dict(
     async_select_option=write,asyncio=asyncio
 )
 exec(compile(ast.Module(body=methods,type_ignores=[]),str(SOURCE),"exec"),namespace)
+global_command = namespace["async_select_option"]
+namespace["async_select_option"] = write
 class Fake:
     current_option=property(namespace["current_option"].fget if isinstance(namespace["current_option"],property) else namespace["current_option"])
     _observed_mode=namespace["_observed_mode"]
     _write_verified=namespace["_write_verified"]
-    async_select_option=namespace["async_select_option"]
+    async_select_option=global_command
     def __init__(self,active=False):
         self.values=dict(h1="1 - Automatique" if active else "0 - Mode protection",
                          h2="0 - Mode protection", c1="0 - Mode protection",c2="0 - Mode protection")

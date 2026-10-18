@@ -162,6 +162,21 @@ DESCRIPTIONS = (
 )
 
 
+# The eight programmed setpoints are independent of the effective room target.
+# BSB 8741/8771 may change with the program or native override, whereas these
+# values remain the underlying Comfort/Reduced settings for each season.
+_PROGRAMMED_SETPOINTS = (
+    (1, "Chauffage", "Confort", "heat_setpoint_c1", 710),
+    (1, "Chauffage", "Réduite (Éco)", "heat_reduced_setpoint_c1", 712),
+    (1, "Rafraîchissement", "Confort", "cool_setpoint_c1", 902),
+    (1, "Rafraîchissement", "Réduite (Éco)", "cool_reduced_setpoint_c1", 903),
+    (2, "Chauffage", "Confort", "heat_setpoint_c2", 1010),
+    (2, "Chauffage", "Réduite (Éco)", "heat_reduced_setpoint_c2", 1012),
+    (2, "Rafraîchissement", "Confort", "cool_setpoint_c2", 1202),
+    (2, "Rafraîchissement", "Réduite (Éco)", "cool_reduced_setpoint_c2", 1203),
+)
+
+
 @dataclass(frozen=True)
 class CalculatedSensorDescription:
     key: str
@@ -250,6 +265,7 @@ async def async_setup_entry(
         if entry.data.get(desc.key)
     ]
     entities.extend(AlfeaCircuitSeasonStateSensor(hass, entry, circuit) for circuit in (1, 2))
+    entities.extend(AlfeaProgrammedSetpointSensor(hass, entry, item) for item in _PROGRAMMED_SETPOINTS)
     if isinstance(entry.runtime_data, AlfeaRuntimeMonitor):
         entities.extend(
             AlfeaCalculatedSensor(entry, entry.runtime_data, desc)
@@ -304,6 +320,42 @@ class AlfeaProxySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source], self.async_write_ha_state))
+
+
+class AlfeaProgrammedSetpointSensor(SensorEntity):
+    """Read-only diagnostic for a native BSB programmed setpoint."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = "°C"
+    _attr_icon = "mdi:thermometer-cog"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, item: tuple) -> None:
+        self.hass = hass
+        self._entry = entry
+        circuit, season, profile, key, parameter = item
+        self._key = key
+        self._parameter = parameter
+        self._attr_name = f"Circuit {circuit} — {season} — Consigne {profile}"
+        self._attr_unique_id = f"{entry.entry_id}_programmed_{key}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _source(self) -> str | None:
+        return source_entity(self.hass, self._entry, self._key, self._parameter)
+
+    @property
+    def native_value(self) -> float | None:
+        return state_float(self.hass, self._source())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int]:
+        return {"parametre_bsb": self._parameter}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            track_entities(self.hass, [self._source()], self.async_write_ha_state)
+        )
 
 
 class AlfeaCircuitSeasonStateSensor(SensorEntity):

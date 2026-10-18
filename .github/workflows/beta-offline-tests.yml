@@ -17,4 +17,4 @@ jobs:
       - name: Check Python syntax
         run: python -m compileall -q custom_components/atlantic_alfea_controller tests
       - name: Simulate global mode commands
-        run: python -m unittest discover -s tests -p 'test_global_mode_offline.py' -v
+        run: python -m unittest discover -s tests -p 'test_*.py' -v

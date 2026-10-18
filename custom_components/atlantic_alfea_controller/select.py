@@ -35,6 +35,7 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
         self.hass = hass
         self._entry = entry
         self._last_known_mode: str | None = None
+        self._selected_mode: str | None = None
         self._command_lock = asyncio.Lock()
         self._attr_unique_id = f"{entry.entry_id}_global_mode"
         self._attr_device_info = DeviceInfo(
@@ -55,13 +56,17 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
         )
         if mode in (MODE_HEAT, MODE_COOL):
             self._last_known_mode = mode
-        return _MODE_TO_OPTION[mode if mode != MODE_OFF else self._last_known_mode or MODE_OFF]
+        if mode in (MODE_HEAT, MODE_COOL):
+            self._selected_mode = mode
+        return _MODE_TO_OPTION[mode if mode != MODE_OFF else self._selected_mode or self._last_known_mode or MODE_OFF]
 
     @property
     def extra_state_attributes(self) -> dict[str, str]:
         if self._observed_mode() != MODE_OFF:
             return {"source_saison": "BSB-LAN"}
-        return {"source_saison": "dernier mode connu (non confirmé)" if self._last_known_mode else "inconnu"}
+        if self._selected_mode == MODE_OFF:
+            return {"source_saison": "arrêt global demandé dans Home Assistant"}
+        return {"source_saison": "choix HA / dernier mode connu (non confirmé)" if (self._selected_mode or self._last_known_mode) else "inconnu"}
 
     def _observed_mode(self) -> str:
         data = self._entry.data
@@ -115,18 +120,22 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
             target = _OPTION_TO_MODE[option]
             current = MODE_HEAT if heat_active else MODE_COOL if cool_active else MODE_OFF
             if target == current and target != MODE_OFF:
+                self._selected_mode = target
+                self.async_write_ha_state()
                 return
 
             if target != MODE_OFF:
-                if current == MODE_OFF:
-                    raise HomeAssistantError(
-                        "Tous les circuits sont en Protection : saison non confirmée. "
-                        "Aucune activation automatique autorisée."
-                    )
+                if current == MODE_OFF and (
+                    target == self._last_known_mode or target == self._selected_mode
+                ):
+                    # Explicitly reselect the remembered season without starting
+                    # either circuit. Each climate controls its own activation.
+                    self._selected_mode = target
+                    self.async_write_ha_state()
+                    return
                 raise HomeAssistantError(
-                    "Commutation Chauffage/Refroidissement temporairement bloquée : "
-                    "le verrouillage saisonnier du RVS et son délai de sécurité "
-                    "ne sont pas encore validés. Aucune commande envoyée."
+                    "Changement de saison non confirmé : activation bloquée. "
+                    "Aucun circuit activé."
                 )
 
             # Off acts on circuit modes only. Season memory is retained.
@@ -136,6 +145,7 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
                     key = f"{prefix}_mode_c{n}"
                     if not is_protection(readings[key]):
                         await self._write_verified(data[key], BSB_PROTECTION)
+            self._selected_mode = MODE_OFF
             self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
@@ -144,6 +154,8 @@ class AlfeaGlobalModeSelect(SelectEntity, RestoreEntity):
             restored = _OPTION_TO_MODE.get(previous.state)
             if restored in (MODE_HEAT, MODE_COOL):
                 self._last_known_mode = restored
+            if restored in (MODE_HEAT, MODE_COOL, MODE_OFF):
+                self._selected_mode = restored
         self.async_on_remove(
             track_entities(
                 self.hass,

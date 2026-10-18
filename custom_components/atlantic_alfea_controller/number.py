@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from homeassistant.components.number import NumberEntity, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTime
@@ -12,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
 from .helpers import async_set_numeric_entity, source_entity, state_float, track_entities
+from .polling import async_poll_parameters
 
 _DURATION_PARAM = {1: ("override_duration_c1", 10990), 2: ("override_duration_c2", 10992)}
 _DEFAULT_DURATION_HOURS = 2.0
@@ -106,7 +109,7 @@ class AlfeaProgrammedSetpointNumber(NumberEntity):
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:thermometer-cog"
-    _attr_native_min_value = 5.0
+    _attr_native_min_value = 7.0
     _attr_native_max_value = 35.0
     _attr_native_step = 0.5
     _attr_native_unit_of_measurement = "°C"
@@ -164,7 +167,20 @@ class AlfeaProgrammedSetpointNumber(NumberEntity):
             raise HomeAssistantError(
                 f"Écriture BSB {self._parameter} refusée : {exc}"
             ) from exc
-        self.async_write_ha_state()
+
+        # The HA service call only confirms dispatch, not acceptance by the PAC.
+        # Request a fresh BSB reading and check the actual returned value.
+        await async_poll_parameters(self.hass, (self._parameter,))
+        for _ in range(20):
+            confirmed = state_float(self.hass, source)
+            if confirmed is not None and abs(confirmed - value) < 0.01:
+                self.async_write_ha_state()
+                return
+            await asyncio.sleep(0.5)
+        raise HomeAssistantError(
+            f"Consigne BSB {self._parameter} envoyée mais non confirmée "
+            "après 10 secondes : vérifier le retour BSB-LAN."
+        )
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(

@@ -8,7 +8,7 @@ import unittest
 SOURCE = Path(__file__).resolve().parents[1] / "custom_components/atlantic_alfea_controller/climate.py"
 tree = ast.parse(SOURCE.read_text(encoding="utf-8"))
 klass = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "AlfeaCircuitClimate")
-method = next(n for n in klass.body if isinstance(n, ast.AsyncFunctionDef) and n.name == "async_set_hvac_mode")
+methods = [n for n in klass.body if isinstance(n, ast.AsyncFunctionDef) and n.name in ("async_set_hvac_mode", "_write_circuit_mode_verified")]
 
 class HAError(Exception):
     pass
@@ -56,8 +56,10 @@ namespace = {
     "er":SimpleNamespace(async_get=lambda hass:SimpleNamespace(
         async_get_entity_id=lambda *args:"select.global")),
 }
-exec(compile(ast.Module(body=[method], type_ignores=[]), str(SOURCE), "exec"), namespace)
+exec(compile(ast.Module(body=methods, type_ignores=[]), str(SOURCE), "exec"), namespace)
 Circuit.async_set_hvac_mode = namespace["async_set_hvac_mode"]
+Circuit._write_circuit_mode_verified = namespace["_write_circuit_mode_verified"]
+namespace["asyncio"] = asyncio
 
 class Tests(unittest.TestCase):
     def test_reenable_when_both_protected_and_ha_heating(self):

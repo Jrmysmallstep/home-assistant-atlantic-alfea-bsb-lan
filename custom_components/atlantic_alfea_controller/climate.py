@@ -162,58 +162,54 @@ class AlfeaCircuitClimate(ClimateEntity):
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
-        """Allow independent circuit protection without changing PAC season."""
-        mode = self._mode()
-        if mode == MODE_HEAT:
-            return [HVACMode.OFF, HVACMode.HEAT]
-        if mode == MODE_COOL:
-            return [HVACMode.OFF, HVACMode.COOL]
-        return [HVACMode.OFF]
+        """Expose the same three circuit choices year-round."""
+        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Switch this circuit between Automatic and Protection in current season."""
-        season = self._mode()
-        if season not in (MODE_HEAT, MODE_COOL):
-            raise HomeAssistantError(
-                "Saison de la PAC inconnue : commande du circuit refusée."
-            )
-        expected = HVACMode.HEAT if season == MODE_HEAT else HVACMode.COOL
-        if hvac_mode not in (HVACMode.OFF, expected):
-            raise HomeAssistantError(
-                "Le mode demandé ne correspond pas à la saison actuelle de la PAC."
-            )
-        prefix = "heat" if season == MODE_HEAT else "cool"
-        other = "cool" if season == MODE_HEAT else "heat"
+        """Control this circuit only; never change the global PAC season."""
+        if hvac_mode not in (HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL):
+            raise HomeAssistantError("Mode de circuit non pris en charge.")
+
         data = self._entry.data
-        target_entity = data[f"{prefix}_mode_c{self._circuit}"]
-        other_entity = data[f"{other}_mode_c{self._circuit}"]
-        target_state = state_value(self.hass, target_entity)
-        other_state = state_value(self.hass, other_entity)
-        if target_state is None or other_state is None:
-            raise HomeAssistantError(
-                "État BSB-LAN du circuit indisponible : aucune commande envoyée."
-            )
-        if not is_protection(other_state):
-            raise HomeAssistantError(
-                "Le mode de la saison opposée est actif : commande bloquée."
-            )
-        if hvac_mode != HVACMode.OFF:
-            # A restored mode is not proof of physical season when every circuit
-            # is protected; require a currently active circuit as evidence.
-            observed = derive_global_mode(
-                state_value(self.hass, data["heat_mode_c1"]),
-                state_value(self.hass, data["cool_mode_c1"]),
-                state_value(self.hass, data["heat_mode_c2"]),
-                state_value(self.hass, data["cool_mode_c2"]),
-            )
-            if observed != season:
-                raise HomeAssistantError(
-                    "Saison non confirmée par un circuit actif : activation refusée."
-                )
-        target_option = BSB_PROTECTION if hvac_mode == HVACMode.OFF else BSB_AUTO
-        if (hvac_mode == HVACMode.OFF) == is_protection(target_state):
+        heat_id = data[f"heat_mode_c{self._circuit}"]
+        cool_id = data[f"cool_mode_c{self._circuit}"]
+        heat_state = state_value(self.hass, heat_id)
+        cool_state = state_value(self.hass, cool_id)
+        if heat_state is None or cool_state is None:
+            raise HomeAssistantError("États BSB-LAN indisponibles : aucune commande envoyée.")
+
+        if hvac_mode == HVACMode.OFF:
+            # Protection applies to both circuit selectors, independently of
+            # any remembered or inferred global season.
+            if not is_protection(heat_state):
+                await async_select_option(self.hass, heat_id, BSB_PROTECTION)
+            if not is_protection(cool_state):
+                await async_select_option(self.hass, cool_id, BSB_PROTECTION)
+            self.async_write_ha_state()
             return
-        await async_select_option(self.hass, target_entity, target_option)
+
+        requested_season = MODE_HEAT if hvac_mode == HVACMode.HEAT else MODE_COOL
+        observed = derive_global_mode(
+            state_value(self.hass, data["heat_mode_c1"]),
+            state_value(self.hass, data["cool_mode_c1"]),
+            state_value(self.hass, data["heat_mode_c2"]),
+            state_value(self.hass, data["cool_mode_c2"]),
+        )
+        if observed != requested_season:
+            raise HomeAssistantError(
+                "Saison demandée non confirmée par les circuits BSB-LAN : "
+                "activation refusée. La carte ne change jamais la saison PAC."
+            )
+
+        selected_id = heat_id if requested_season == MODE_HEAT else cool_id
+        opposite_state = cool_state if requested_season == MODE_HEAT else heat_state
+        if not is_protection(opposite_state):
+            raise HomeAssistantError(
+                "Circuit actif dans la saison opposée : activation refusée."
+            )
+        selected_state = heat_state if requested_season == MODE_HEAT else cool_state
+        if is_protection(selected_state):
+            await async_select_option(self.hass, selected_id, BSB_AUTO)
         self.async_write_ha_state()
 
     @property

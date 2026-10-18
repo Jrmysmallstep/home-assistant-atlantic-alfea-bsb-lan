@@ -2,18 +2,31 @@
 
 from __future__ import annotations
 
-from homeassistant.components.number import RestoreNumber
+from homeassistant.components.number import NumberEntity, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import UnitOfTime
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
-from .helpers import source_entity, state_float
+from .helpers import async_set_numeric_entity, source_entity, state_float, track_entities
 
 _DURATION_PARAM = {1: ("override_duration_c1", 10990), 2: ("override_duration_c2", 10992)}
 _DEFAULT_DURATION_HOURS = 2.0
+
+_PROGRAMMED_SETPOINTS = (
+    (1, "Chauffage", "Confort", "heat_setpoint_c1", 710),
+    (1, "Chauffage", "Éco", "heat_reduced_setpoint_c1", 712),
+    (1, "Rafraîchissement", "Confort", "cool_setpoint_c1", 902),
+    (1, "Rafraîchissement", "Éco", "cool_reduced_setpoint_c1", 903),
+    (2, "Chauffage", "Confort", "heat_setpoint_c2", 1010),
+    (2, "Chauffage", "Éco", "heat_reduced_setpoint_c2", 1012),
+    (2, "Rafraîchissement", "Confort", "cool_setpoint_c2", 1202),
+    (2, "Rafraîchissement", "Éco", "cool_reduced_setpoint_c2", 1203),
+)
+
 
 
 async def async_setup_entry(
@@ -26,6 +39,7 @@ async def async_setup_entry(
         [
             AlfeaOverrideDurationNumber(hass, entry, 1),
             AlfeaOverrideDurationNumber(hass, entry, 2),
+            *(AlfeaProgrammedSetpointNumber(hass, entry, item) for item in _PROGRAMMED_SETPOINTS),
         ]
     )
 
@@ -85,3 +99,61 @@ class AlfeaOverrideDurationNumber(RestoreNumber):
 
     def _clamp(self, value: float) -> float:
         return float(max(self.native_min_value, min(self.native_max_value, round(value))))
+
+
+class AlfeaProgrammedSetpointNumber(NumberEntity):
+    """Writable native Comfort/Reduced setpoint, separate from temporary overrides."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:thermometer-cog"
+    _attr_native_min_value = 5.0
+    _attr_native_max_value = 35.0
+    _attr_native_step = 0.5
+    _attr_native_unit_of_measurement = "°C"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, item: tuple) -> None:
+        self.hass = hass
+        self._entry = entry
+        circuit, season, profile, key, parameter = item
+        self._key = key
+        self._parameter = parameter
+        self._attr_unique_id = f"{entry.entry_id}_control_{key}"
+        self._attr_name = f"Circuit {circuit} — {season} — Régler {profile}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _source(self) -> str | None:
+        return source_entity(self.hass, self._entry, self._key, self._parameter)
+
+    @property
+    def native_value(self) -> float | None:
+        return state_float(self.hass, self._source())
+
+    @property
+    def available(self) -> bool:
+        return self._source() is not None and self.native_value is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int]:
+        return {"parametre_bsb": self._parameter}
+
+    async def async_set_native_value(self, value: float) -> None:
+        source = self._source()
+        if source is None or source.split(".", 1)[0] not in ("number", "text"):
+            raise HomeAssistantError(
+                f"Paramètre BSB {self._parameter} non disponible en écriture."
+            )
+        value = float(value)
+        if not 5.0 <= value <= 35.0 or round(value * 2) != value * 2:
+            raise HomeAssistantError("Consigne attendue de 5 à 35 °C, par pas de 0,5 °C.")
+        try:
+            await async_set_numeric_entity(self.hass, source, value)
+        except Exception as exc:
+            raise HomeAssistantError(
+                f"Écriture BSB {self._parameter} refusée : {exc}"
+            ) from exc
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            track_entities(self.hass, [self._source()], self.async_write_ha_state)
+        )

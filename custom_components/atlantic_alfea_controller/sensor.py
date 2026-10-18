@@ -30,14 +30,15 @@ class SensorDescription:
     numeric: bool = True
     clean_bsb_code: bool = False
     entity_category: EntityCategory | None = None
+    enabled_default: bool = True
 
 
 DESCRIPTIONS = (
     SensorDescription("pac_state", "PAC — État général", "mdi:heat-pump", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_state_c1", "Circuit 1 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_state_c2", "Circuit 2 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
-    SensorDescription("cool_state_c1", "Circuit 1 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
-    SensorDescription("cool_state_c2", "Circuit 2 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
+    SensorDescription("heat_state_c1", "Circuit 1 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("heat_state_c2", "Circuit 2 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("cool_state_c1", "Circuit 1 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("cool_state_c2", "Circuit 2 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
     SensorDescription("heat_flow_target_c1", "Circuit 1 — Chauffage — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
     SensorDescription("heat_flow_target_c2", "Circuit 2 — Chauffage — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
     SensorDescription("dhw_state", "ECS — État", "mdi:water-boiler", numeric=False, clean_bsb_code=True),
@@ -296,6 +297,7 @@ class AlfeaProxySensor(SensorEntity):
         self._attr_state_class = desc.state_class
         self._attr_native_unit_of_measurement = desc.unit
         self._attr_entity_category = desc.entity_category
+        self._attr_entity_registry_enabled_default = desc.enabled_default
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
 
     @property

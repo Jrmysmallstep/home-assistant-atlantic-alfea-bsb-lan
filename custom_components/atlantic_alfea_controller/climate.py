@@ -197,6 +197,19 @@ class AlfeaCircuitClimate(ClimateEntity):
             raise HomeAssistantError(
                 "Le mode de la saison opposée est actif : commande bloquée."
             )
+        if hvac_mode != HVACMode.OFF:
+            # A restored mode is not proof of physical season when every circuit
+            # is protected; require a currently active circuit as evidence.
+            observed = derive_global_mode(
+                state_value(self.hass, data["heat_mode_c1"]),
+                state_value(self.hass, data["cool_mode_c1"]),
+                state_value(self.hass, data["heat_mode_c2"]),
+                state_value(self.hass, data["cool_mode_c2"]),
+            )
+            if observed != season:
+                raise HomeAssistantError(
+                    "Saison non confirmée par un circuit actif : activation refusée."
+                )
         target_option = BSB_PROTECTION if hvac_mode == HVACMode.OFF else BSB_AUTO
         if (hvac_mode == HVACMode.OFF) == is_protection(target_state):
             return

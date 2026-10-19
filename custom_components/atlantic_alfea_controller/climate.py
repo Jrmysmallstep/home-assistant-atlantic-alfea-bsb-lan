@@ -103,7 +103,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         self._pending_target_temperature: float | None = None
         self._pending_base_temperature: float | None = None
         self._pending_override_task: asyncio.Task | None = None
-        self._attr_name = f"Circuit {circuit} (C{circuit})"
+        self._attr_name = f"C{circuit} - Circuit {circuit}"
         self._attr_unique_id = f"{entry.entry_id}_circuit_{circuit}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},

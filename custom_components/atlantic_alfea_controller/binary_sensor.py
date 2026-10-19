@@ -36,7 +36,7 @@ async def async_setup_entry(
                 hass,
                 entry,
                 "compressor_state",
-                "Compresseur — État",
+                "COMP - État",
                 "mdi:engine",
                 BinarySensorDeviceClass.RUNNING,
             )
@@ -47,7 +47,7 @@ async def async_setup_entry(
                 hass,
                 entry,
                 "defrost",
-                "PAC — Entrée dégivrage DI6",
+                "PAC - Dégivrage DI6",
                 "mdi:snowflake-alert",
                 BinarySensorDeviceClass.RUNNING,
                 EntityCategory.DIAGNOSTIC,
@@ -59,7 +59,7 @@ async def async_setup_entry(
                 hass,
                 entry,
                 "dhw_electric_heater",
-                "ECS — Appoint électrique",
+                "ECS - Appoint électrique",
                 "mdi:water-boiler",
                 BinarySensorDeviceClass.RUNNING,
                 EntityCategory.DIAGNOSTIC,
@@ -71,7 +71,7 @@ async def async_setup_entry(
                 hass,
                 entry,
                 "dhw_pump",
-                "ECS — Pompe",
+                "ECS - Pompe",
                 "mdi:pump",
                 BinarySensorDeviceClass.RUNNING,
                 EntityCategory.DIAGNOSTIC,
@@ -103,7 +103,7 @@ class AlfeaOverrideBinarySensor(BinarySensorEntity):
         self.hass = hass
         self._source = entry.data[key]
         self._circuit = circuit
-        self._attr_name = f"Circuit {circuit} — Dérogation native"
+        self._attr_name = f"C{circuit} - Dérogation"
         self._attr_unique_id = f"{entry.entry_id}_{key}_active"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
 
@@ -173,7 +173,7 @@ class AlertDescription:
 ALERT_DESCRIPTIONS = (
     AlertDescription(
         "short_cycle_problem",
-        "Alarme — Compresseur — Cycles courts répétés",
+        "Alarme - COMP  Cycles courts répétés",
         "mdi:timer-alert-outline",
         lambda monitor: monitor.short_cycle_problem,
         lambda monitor: {
@@ -189,7 +189,7 @@ ALERT_DESCRIPTIONS = (
     ),
     AlertDescription(
         "restart_too_soon_problem",
-        "Alarme — Compresseur — Redémarrages trop rapprochés",
+        "Alarme - COMP  Redémarrages trop rapprochés",
         "mdi:timer-refresh-outline",
         lambda monitor: monitor.restart_too_soon_problem,
         lambda monitor: {
@@ -204,7 +204,7 @@ ALERT_DESCRIPTIONS = (
     ),
     AlertDescription(
         "frequent_starts_problem",
-        "Alarme — Compresseur — Démarrages fréquents",
+        "Alarme - COMP  Démarrages fréquents",
         "mdi:restart-alert",
         lambda monitor: monitor.frequent_starts_problem,
         lambda monitor: {
@@ -216,7 +216,7 @@ ALERT_DESCRIPTIONS = (
     ),
     AlertDescription(
         "flow_gap_problem",
-        "Alarme — PAC — Écart de température anormal",
+        "Alarme - PAC - Écart de température anormal",
         "mdi:thermometer-alert",
         lambda monitor: monitor.flow_gap_problem,
         lambda monitor: {
@@ -229,7 +229,7 @@ ALERT_DESCRIPTIONS = (
     ),
     AlertDescription(
         "compressor_alert",
-        "Alarme — Compresseur — Synthèse",
+        "Alarme - COMP  Synthèse",
         "mdi:engine-off-outline",
         lambda monitor: monitor.compressor_alert,
         lambda monitor: {
@@ -281,7 +281,7 @@ class AlfeaClockDesyncBinarySensor(BinarySensorEntity):
     """Report a significant difference between PAC and Home Assistant clocks."""
 
     _attr_has_entity_name = True
-    _attr_name = "Alarme — Horloge PAC désynchronisée"
+    _attr_name = "Alarme - Horloge PAC désynchronisée"
     _attr_icon = "mdi:clock-alert-outline"
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
     _attr_entity_category = EntityCategory.DIAGNOSTIC

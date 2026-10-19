@@ -12,7 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .const import BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, SELECT_OPTIONS
+from .const import BSB_AUTO, BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, SELECT_OPTIONS
 from .helpers import async_select_option, derive_global_mode, is_enabled, is_protection, state_value, track_entities
 
 _OPTION_TO_MODE = {"Off": MODE_OFF, "Chauffage": MODE_HEAT, "Refroidissement": MODE_COOL}

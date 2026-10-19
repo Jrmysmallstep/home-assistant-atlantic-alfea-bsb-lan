@@ -10,11 +10,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_ids, pac_clock_datetime
-from .const import DOMAIN
-from .helpers import clean_bsb_status, split_bsb_status, state_float, state_value, track_entities
+from .const import DOMAIN, MODE_COOL, MODE_HEAT
+from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
 
 
@@ -29,20 +30,21 @@ class SensorDescription:
     numeric: bool = True
     clean_bsb_code: bool = False
     entity_category: EntityCategory | None = None
+    enabled_default: bool = True
 
 
 DESCRIPTIONS = (
-    SensorDescription("pac_state", "PAC — État général", "mdi:heat-pump", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_state_c1", "Circuit 1 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_state_c2", "Circuit 2 — Chauffage — État", "mdi:radiator", numeric=False, clean_bsb_code=True),
-    SensorDescription("cool_state_c1", "Circuit 1 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
-    SensorDescription("cool_state_c2", "Circuit 2 — Rafraîchissement — État", "mdi:snowflake", numeric=False, clean_bsb_code=True),
-    SensorDescription("heat_flow_target_c1", "Circuit 1 — Chauffage — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
-    SensorDescription("heat_flow_target_c2", "Circuit 2 — Chauffage — Consigne départ résultante", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
-    SensorDescription("dhw_state", "ECS — État", "mdi:water-boiler", numeric=False, clean_bsb_code=True),
+    SensorDescription("pac_state", "PAC - État", "mdi:heat-pump", numeric=False, clean_bsb_code=True),
+    SensorDescription("heat_state_c1", "C1 - Chauffage État", "mdi:radiator", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("heat_state_c2", "C2 - Chauffage État", "mdi:radiator", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("cool_state_c1", "C1 - Rafraîch. État", "mdi:snowflake", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("cool_state_c2", "C2 - Rafraîch. État", "mdi:snowflake", numeric=False, clean_bsb_code=True, entity_category=EntityCategory.DIAGNOSTIC, enabled_default=False),
+    SensorDescription("heat_flow_target_c1", "C1 - Chauffage T. départ cible", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
+    SensorDescription("heat_flow_target_c2", "C2 - Chauffage T. départ cible", "mdi:thermometer-chevron-up", SensorDeviceClass.TEMPERATURE, SensorStateClass.MEASUREMENT, "°C"),
+    SensorDescription("dhw_state", "ECS - État", "mdi:water-boiler", numeric=False, clean_bsb_code=True),
     SensorDescription(
         "dhw_nominal_setpoint",
-        "ECS — Consigne nominale",
+        "ECS - T. Confort",
         "mdi:thermometer-water",
         SensorDeviceClass.TEMPERATURE,
         SensorStateClass.MEASUREMENT,
@@ -50,7 +52,7 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "dhw_reduced_setpoint",
-        "ECS — Consigne réduite",
+        "ECS - T. Éco",
         "mdi:thermometer-low",
         SensorDeviceClass.TEMPERATURE,
         SensorStateClass.MEASUREMENT,
@@ -58,7 +60,7 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "dhw_temperature",
-        "ECS — Température ballon",
+        "ECS - T. ballon",
         "mdi:water-thermometer",
         SensorDeviceClass.TEMPERATURE,
         SensorStateClass.MEASUREMENT,
@@ -66,14 +68,14 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "compressor_modulation",
-        "Compresseur — Modulation",
+        "COMP - Modulation",
         "mdi:gauge",
         unit="%",
         state_class=SensorStateClass.MEASUREMENT,
     ),
     SensorDescription(
         "energy_total",
-        "PAC — Énergie utilisée (BSB)",
+        "PAC - Énergie totale",
         "mdi:lightning-bolt",
         SensorDeviceClass.ENERGY,
         SensorStateClass.TOTAL_INCREASING,
@@ -81,35 +83,35 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "flow_temp",
-        "PAC — Température départ",
+        "PAC - T. départ",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         unit="°C",
     ),
     SensorDescription(
         "return_temp",
-        "PAC — Température retour",
+        "PAC - T. retour",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         unit="°C",
     ),
     SensorDescription(
         "target_flow_temp",
-        "PAC — Consigne départ",
+        "PAC - T. départ cible",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         unit="°C",
     ),
     SensorDescription(
         "outdoor_temp",
-        "PAC — Température extérieure",
+        "PAC - T. extérieure",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         unit="°C",
     ),
     SensorDescription(
         "compressor_hours",
-        "Compresseur — Heures de fonctionnement",
+        "COMP - Heures de fonctionnement",
         "mdi:timer",
         SensorDeviceClass.DURATION,
         SensorStateClass.TOTAL_INCREASING,
@@ -118,7 +120,7 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "compressor_starts",
-        "Compresseur — Nombre de démarrages",
+        "COMP - Nombre de démarrages",
         "mdi:counter",
         state_class=SensorStateClass.TOTAL_INCREASING,
         unit="démarrages",
@@ -126,7 +128,7 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "compressor_min_run",
-        "Compresseur — Temps de marche minimum",
+        "COMP - Temps de marche minimum",
         "mdi:timer-play-outline",
         SensorDeviceClass.DURATION,
         SensorStateClass.MEASUREMENT,
@@ -135,7 +137,7 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "compressor_min_off",
-        "Compresseur — Temps d’arrêt minimum",
+        "COMP - Temps d’arrêt minimum",
         "mdi:timer-pause-outline",
         SensorDeviceClass.DURATION,
         SensorStateClass.MEASUREMENT,
@@ -144,7 +146,7 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "compressor_starts_max_rate",
-        "Compresseur — Seuil de démarrages régulateur",
+        "COMP - Seuil de démarrages régulateur",
         "mdi:speedometer",
         state_class=SensorStateClass.MEASUREMENT,
         unit="démarrages/h",
@@ -152,12 +154,37 @@ DESCRIPTIONS = (
     ),
     SensorDescription(
         "compressor_starts_current_rate",
-        "Compresseur — Démarrages régulateur",
+        "COMP - Démarrages régulateur",
         "mdi:speedometer-medium",
         state_class=SensorStateClass.MEASUREMENT,
         unit="démarrages/h",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+)
+
+
+# The eight programmed setpoints are independent of the effective room target.
+# BSB 8741/8771 may change with the program or native override, whereas these
+# values remain the underlying Comfort/Reduced settings for each season.
+_PROGRAMMED_SETPOINTS = (
+    (1, "Chauffage", "Confort", "heat_setpoint_c1", 710),
+    (1, "Chauffage", "Réduite (Éco)", "heat_reduced_setpoint_c1", 712),
+    (1, "Rafraîchissement", "Confort", "cool_setpoint_c1", 902),
+    (1, "Rafraîchissement", "Réduite (Éco)", "cool_reduced_setpoint_c1", 903),
+    (2, "Chauffage", "Confort", "heat_setpoint_c2", 1010),
+    (2, "Chauffage", "Réduite (Éco)", "heat_reduced_setpoint_c2", 1012),
+    (2, "Rafraîchissement", "Confort", "cool_setpoint_c2", 1202),
+    (2, "Rafraîchissement", "Réduite (Éco)", "cool_reduced_setpoint_c2", 1203),
+)
+
+
+# Custom BSB-LAN read-only parameters. These do not control the PAC or its
+# native schedules. Keep absent/unknown parameter values as unavailable.
+_CIRCUIT_PROGRAM_DIAGNOSTICS = (
+    (1, "Régime temporaire", 10110),
+    (2, "Régime temporaire", 10120),
+    (1, "Programme actif", 10112),
+    (2, "Programme actif", 10122),
 )
 
 
@@ -176,7 +203,7 @@ class CalculatedSensorDescription:
 CALCULATED_DESCRIPTIONS = (
     CalculatedSensorDescription(
         "dhw_production",
-        "ECS — Production",
+        "ECS - Production",
         lambda monitor: monitor.dhw_production_state,
         "mdi:water-boiler-auto",
         state_class=None,
@@ -184,7 +211,7 @@ CALCULATED_DESCRIPTIONS = (
     ),
     CalculatedSensorDescription(
         "average_cycle_duration",
-        "Compresseur — Durée moyenne historique d’un cycle",
+        "COMP - Durée moyenne historique d’un cycle",
         lambda monitor: monitor.average_cycle_duration_minutes,
         "mdi:timer-sync-outline",
         "min",
@@ -192,7 +219,7 @@ CALCULATED_DESCRIPTIONS = (
     ),
     CalculatedSensorDescription(
         "last_cycle_duration",
-        "Compresseur — Durée du dernier cycle",
+        "COMP - Durée du dernier cycle",
         lambda monitor: monitor.last_cycle_duration_minutes,
         "mdi:timer-outline",
         "min",
@@ -200,7 +227,7 @@ CALCULATED_DESCRIPTIONS = (
     ),
     CalculatedSensorDescription(
         "last_off_duration",
-        "Compresseur — Durée du dernier arrêt",
+        "COMP - Durée du dernier arrêt",
         lambda monitor: monitor.last_off_duration_minutes,
         "mdi:timer-pause",
         "min",
@@ -208,28 +235,28 @@ CALCULATED_DESCRIPTIONS = (
     ),
     CalculatedSensorDescription(
         "starts_today",
-        "Compresseur — Démarrages aujourd’hui",
+        "COMP - Démarrages aujourd’hui",
         lambda monitor: monitor.starts_today,
         "mdi:counter",
         "démarrages",
     ),
     CalculatedSensorDescription(
         "starts_last_hour",
-        "Compresseur — Démarrages sur la dernière heure",
+        "COMP - Démarrages sur la dernière heure",
         lambda monitor: monitor.starts_last_hour,
         "mdi:history",
         "démarrages",
     ),
     CalculatedSensorDescription(
         "short_cycles_last_six_hours",
-        "Compresseur — Cycles courts sur 6 heures",
+        "COMP - Cycles courts sur 6 heures",
         lambda monitor: monitor.short_cycles_last_six_hours,
         "mdi:timer-alert-outline",
         "cycles",
     ),
     CalculatedSensorDescription(
         "flow_target_gap",
-        "PAC — Écart départ / consigne",
+        "PAC - Écart départ / consigne",
         lambda monitor: monitor.flow_gap,
         "mdi:thermometer-alert",
         "°C",
@@ -248,6 +275,9 @@ async def async_setup_entry(
         for desc in DESCRIPTIONS
         if entry.data.get(desc.key)
     ]
+    entities.extend(AlfeaCircuitSeasonStateSensor(hass, entry, circuit) for circuit in (1, 2))
+    entities.extend(AlfeaCircuitProgramDiagnosticSensor(hass, entry, item) for item in _CIRCUIT_PROGRAM_DIAGNOSTICS)
+    entities.extend(AlfeaProgrammedSetpointSensor(hass, entry, item) for item in _PROGRAMMED_SETPOINTS)
     if isinstance(entry.runtime_data, AlfeaRuntimeMonitor):
         entities.extend(
             AlfeaCalculatedSensor(entry, entry.runtime_data, desc)
@@ -278,6 +308,7 @@ class AlfeaProxySensor(SensorEntity):
         self._attr_state_class = desc.state_class
         self._attr_native_unit_of_measurement = desc.unit
         self._attr_entity_category = desc.entity_category
+        self._attr_entity_registry_enabled_default = desc.enabled_default
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
 
     @property
@@ -302,6 +333,141 @@ class AlfeaProxySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source], self.async_write_ha_state))
+
+
+class AlfeaCircuitProgramDiagnosticSensor(SensorEntity):
+    """Read-only native BSB regime and schedule diagnostics."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:calendar-clock"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, item: tuple[int, str, int]) -> None:
+        self.hass = hass
+        self._entry = entry
+        circuit, label, parameter = item
+        self._parameter = parameter
+        self._attr_name = f"C{circuit} - {label}"
+        self._attr_unique_id = f"{entry.entry_id}_program_diagnostic_{parameter}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _source(self) -> str | None:
+        return source_entity(self.hass, self._entry, f"program_diagnostic_{self._parameter}", self._parameter)
+
+    @property
+    def native_value(self) -> str | None:
+        return clean_bsb_status(state_value(self.hass, self._source()))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int]:
+        return {"parametre_bsb": self._parameter}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(track_entities(self.hass, [self._source()], self.async_write_ha_state))
+
+
+class AlfeaProgrammedSetpointSensor(SensorEntity):
+    """Read-only diagnostic for a native BSB programmed setpoint."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = "°C"
+    _attr_icon = "mdi:thermometer-cog"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, item: tuple) -> None:
+        self.hass = hass
+        self._entry = entry
+        circuit, season, profile, key, parameter = item
+        self._key = key
+        self._parameter = parameter
+        self._attr_name = f"C{circuit} - {'Rafraîch.' if season == 'Rafraîchissement' else season} Cons. {'Conf' if profile == 'Confort' else 'Éco'}"
+        self._attr_unique_id = f"{entry.entry_id}_programmed_{key}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _source(self) -> str | None:
+        return source_entity(self.hass, self._entry, self._key, self._parameter)
+
+    @property
+    def native_value(self) -> float | None:
+        return state_float(self.hass, self._source())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int]:
+        return {"parametre_bsb": self._parameter}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(
+            track_entities(self.hass, [self._source()], self.async_write_ha_state)
+        )
+
+
+class AlfeaCircuitSeasonStateSensor(SensorEntity):
+    """Expose the season-appropriate circuit status without hiding raw sensors."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:home-thermometer"
+    _attr_state_class = None
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, circuit: int) -> None:
+        self.hass = hass
+        self._entry = entry
+        self._circuit = circuit
+        self._attr_name = f"C{circuit} - État actuel"
+        self._attr_unique_id = f"{entry.entry_id}_circuit_{circuit}_current_state"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _season(self) -> str:
+        return effective_season(self.hass, self._entry)
+
+    @property
+    def native_value(self) -> str | None:
+        season = self._season()
+        if season not in (MODE_HEAT, MODE_COOL):
+            return "Arrêt"
+        prefix = "heat" if season == MODE_HEAT else "cool"
+        mode_entity = self._entry.data.get(f"{prefix}_mode_c{self._circuit}")
+        mode_value = state_value(self.hass, mode_entity)
+        if mode_value is None:
+            return None
+        if is_protection(mode_value):
+            return "Mode protection"
+        state_param = (8000 if self._circuit == 1 else 8001) if season == MODE_HEAT else (8004 if self._circuit == 1 else 8025)
+        raw = state_value(
+            self.hass,
+            source_entity(self.hass, self._entry, f"{prefix}_state_c{self._circuit}", state_param),
+        )
+        return clean_bsb_status(raw)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, str | int]:
+        season = self._season()
+        parameter = (
+            (8000 if self._circuit == 1 else 8001)
+            if season == MODE_HEAT
+            else (8004 if self._circuit == 1 else 8025) if season == MODE_COOL else 0
+        )
+        return {"saison": season, "parametre_etat_bsb": parameter}
+
+    async def async_added_to_hass(self) -> None:
+        data = self._entry.data
+        global_select = er.async_get(self.hass).async_get_entity_id(
+            "select", DOMAIN, f"{self._entry.entry_id}_global_mode"
+        )
+        tracked = [global_select] + [
+            data.get(f"{prefix}_mode_c{circuit}")
+            for prefix in ("heat", "cool")
+            for circuit in (1, 2)
+        ]
+        for prefix, params in (("heat", (8000, 8001)), ("cool", (8004, 8025))):
+            tracked.append(
+                source_entity(
+                    self.hass, self._entry,
+                    f"{prefix}_state_c{self._circuit}",
+                    params[self._circuit - 1],
+                )
+            )
+        self.async_on_remove(track_entities(self.hass, tracked, self.async_write_ha_state))
 
 
 class AlfeaCalculatedSensor(SensorEntity):
@@ -359,7 +525,7 @@ class _AlfeaClockSensorBase(SensorEntity):
 class AlfeaClockDateTimeSensor(_AlfeaClockSensorBase):
     """PAC date and time read from BSB parameter 0."""
 
-    _attr_name = "Horloge PAC — Date et heure"
+    _attr_name = "Horloge PAC - Date et heure"
     _attr_icon = "mdi:calendar-clock"
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -378,7 +544,7 @@ class AlfeaClockOffsetSensor(_AlfeaClockSensorBase):
     """Signed difference between the PAC clock and Home Assistant."""
 
     _attr_entity_registry_enabled_default = False
-    _attr_name = "Horloge PAC — Décalage"
+    _attr_name = "Horloge PAC - Décalage"
     _attr_icon = "mdi:clock-alert-outline"
     _attr_native_unit_of_measurement = "s"
     _attr_state_class = SensorStateClass.MEASUREMENT

@@ -14,11 +14,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, TEMPERATURE_STEP
+from .const import BSB_AUTO, BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, TEMPERATURE_STEP
 from .helpers import (
     async_select_option,
     async_set_numeric_entity,
     derive_global_mode,
+    effective_season,
+    is_protection,
     round_temperature_step,
     source_entity,
     split_bsb_status,
@@ -101,7 +103,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         self._pending_target_temperature: float | None = None
         self._pending_base_temperature: float | None = None
         self._pending_override_task: asyncio.Task | None = None
-        self._attr_name = f"Circuit {circuit}"
+        self._attr_name = f"C{circuit} - Circuit {circuit}"
         self._attr_unique_id = f"{entry.entry_id}_circuit_{circuit}"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
@@ -114,13 +116,15 @@ class AlfeaCircuitClimate(ClimateEntity):
         return source_entity(self.hass, self._entry, key, parameter)
 
     def _mode(self) -> str:
-        data = self._entry.data
-        return derive_global_mode(
-            state_value(self.hass, data["heat_mode_c1"]),
-            state_value(self.hass, data["cool_mode_c1"]),
-            state_value(self.hass, data["heat_mode_c2"]),
-            state_value(self.hass, data["cool_mode_c2"]),
-        )
+        return effective_season(self.hass, self._entry)
+
+    def _circuit_in_protection(self, mode: str) -> bool:
+        """Check circuit-specific protection, independently of the global PAC season."""
+        if mode not in (MODE_HEAT, MODE_COOL):
+            return False
+        prefix = "heat" if mode == MODE_HEAT else "cool"
+        key = f"{prefix}_mode_c{self._circuit}"
+        return is_protection(state_value(self.hass, self._entry.data.get(key)))
 
     def _circuit_status(self, mode: str) -> str | None:
         if mode not in (MODE_HEAT, MODE_COOL):
@@ -158,11 +162,74 @@ class AlfeaCircuitClimate(ClimateEntity):
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
-        return [self.hvac_mode]
+        """Expose the same three circuit choices year-round."""
+        return [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL]
+
+    async def _write_circuit_mode_verified(self, entity_id: str, option: str) -> None:
+        """Send the known V1.3.3 BSB option and wait for feedback."""
+        await async_select_option(self.hass, entity_id, option)
+        for _ in range(20):
+            current = state_value(self.hass, entity_id)
+            if current is not None and is_protection(current) == (option == BSB_PROTECTION):
+                return
+            await asyncio.sleep(0.5)
+        raise HomeAssistantError(
+            f"Le régulateur n'a pas confirmé {option} sur {entity_id} après 10 secondes."
+        )
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Act on this circuit only, using the validated BSB protection/auto values."""
+        if hvac_mode not in (HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL):
+            raise HomeAssistantError("Mode de circuit non pris en charge.")
+        data = self._entry.data
+        heat_id = data[f"heat_mode_c{self._circuit}"]
+        cool_id = data[f"cool_mode_c{self._circuit}"]
+        heat_state = state_value(self.hass, heat_id)
+        cool_state = state_value(self.hass, cool_id)
+        if heat_state is None or cool_state is None:
+            raise HomeAssistantError("États BSB-LAN indisponibles : aucune commande envoyée.")
+
+        if hvac_mode == HVACMode.OFF:
+            if not is_protection(heat_state):
+                await self._write_circuit_mode_verified(heat_id, BSB_PROTECTION)
+            if not is_protection(cool_state):
+                await self._write_circuit_mode_verified(cool_id, BSB_PROTECTION)
+            self.async_write_ha_state()
+            return
+
+        requested = MODE_HEAT if hvac_mode == HVACMode.HEAT else MODE_COOL
+        observed = derive_global_mode(
+            state_value(self.hass, data["heat_mode_c1"]),
+            state_value(self.hass, data["cool_mode_c1"]),
+            state_value(self.hass, data["heat_mode_c2"]),
+            state_value(self.hass, data["cool_mode_c2"]),
+        )
+        if observed not in (MODE_OFF, requested):
+            raise HomeAssistantError("Saison opposée active : changement de circuit refusé.")
+        global_id = er.async_get(self.hass).async_get_entity_id(
+            "select", DOMAIN, f"{self._entry.entry_id}_global_mode"
+        )
+        global_value = state_value(self.hass, global_id)
+        expected = "Chauffage" if requested == MODE_HEAT else "Refroidissement"
+        if global_value != expected:
+            raise HomeAssistantError(
+                f"Sélectionner d'abord {expected} dans le mode global Home Assistant."
+            )
+        other = cool_state if requested == MODE_HEAT else heat_state
+        if not is_protection(other):
+            raise HomeAssistantError("Mode saisonnier opposé actif sur ce circuit.")
+        selected_id = heat_id if requested == MODE_HEAT else cool_id
+        selected = heat_state if requested == MODE_HEAT else cool_state
+        if is_protection(selected):
+            await self._write_circuit_mode_verified(selected_id, BSB_AUTO)
+        self.async_write_ha_state()
 
     @property
     def hvac_mode(self) -> HVACMode:
-        return {MODE_HEAT: HVACMode.HEAT, MODE_COOL: HVACMode.COOL, MODE_OFF: HVACMode.OFF}[self._mode()]
+        mode = self._mode()
+        if self._circuit_in_protection(mode):
+            return HVACMode.OFF
+        return {MODE_HEAT: HVACMode.HEAT, MODE_COOL: HVACMode.COOL, MODE_OFF: HVACMode.OFF}[mode]
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -175,7 +242,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         target (8741/8771).
         """
         mode = self._mode()
-        if mode == MODE_OFF:
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
             return HVACAction.OFF
 
         circuit_state = self._circuit_status(mode)
@@ -224,7 +291,7 @@ class AlfeaCircuitClimate(ClimateEntity):
         that best matches the PAC's own screen.
         """
         mode = self._mode()
-        if mode == MODE_OFF:
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
             return None
 
         # Optimistic target while rapid +/- clicks are grouped.
@@ -251,9 +318,10 @@ class AlfeaCircuitClimate(ClimateEntity):
     @property
     def extra_state_attributes(self) -> dict[str, object | None]:
         mode = self._mode()
-        if mode == MODE_OFF:
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
             return {
-                "etat_circuit_bsb": None,
+                "etat_circuit_bsb": self._circuit_status(mode),
+                "mode_circuit": "protection" if self._circuit_in_protection(mode) else "arrêt",
                 "regime_consigne": None,
                 "ecriture_consigne_autorisee": False,
                 "parametre_consigne_actif": None,
@@ -391,14 +459,16 @@ class AlfeaCircuitClimate(ClimateEntity):
                     self._circuit,
                 )
                 return
-            if override_active is None or self._mode() != MODE_COOL:
+            mode = self._mode()
+            if override_active is None or mode not in (MODE_HEAT, MODE_COOL) or self._circuit_in_protection(mode):
                 _LOGGER.warning(
                     "Dérogation circuit %s non envoyée: état BSB ou mode PAC devenu indisponible",
                     self._circuit,
                 )
                 return
 
-            offset = round(base - requested, 1)
+            delta = round(requested - base, 1)
+            offset = abs(delta)
             if offset < 0.1 or offset > 5.0:
                 _LOGGER.warning(
                     "Dérogation circuit %s non envoyée: écart %.1f °C hors plage",
@@ -421,8 +491,8 @@ class AlfeaCircuitClimate(ClimateEntity):
 
             await async_set_numeric_entity(self.hass, offset_entity, offset)
             await async_set_numeric_entity(self.hass, duration_entity, duration)
-            override_entity, plus_cold_option = self._override_option(0)
-            await async_select_option(self.hass, override_entity, plus_cold_option)
+            override_entity, direction_option = self._override_option(2 if delta > 0 else 0)
+            await async_select_option(self.hass, override_entity, direction_option)
             await async_poll_parameters(
                 self.hass,
                 (offset_parameter, duration_parameter, _PARAM[self._circuit]["override"][1],
@@ -445,13 +515,10 @@ class AlfeaCircuitClimate(ClimateEntity):
             return
 
         mode = self._mode()
-        if mode == MODE_OFF:
-            raise HomeAssistantError("La PAC est arrêtée : aucune dérogation n’a été envoyée.")
-        if mode != MODE_COOL:
-            raise HomeAssistantError(
-                "La dérogation depuis Home Assistant reste limitée au rafraîchissement "
-                "tant que le comportement chauffage n’a pas été validé sur le bus."
-            )
+        if mode == MODE_OFF or self._circuit_in_protection(mode):
+            raise HomeAssistantError("Circuit en protection ou PAC arrêtée : aucune dérogation envoyée.")
+        if mode not in (MODE_HEAT, MODE_COOL):
+            raise HomeAssistantError("Saison indéterminée : dérogation refusée.")
 
         override_active, _override_code, _override_text = self._override_state()
         if override_active is True:
@@ -483,13 +550,14 @@ class AlfeaCircuitClimate(ClimateEntity):
             base = self._pending_base_temperature
 
         requested = round_temperature_step(float(temperature), TEMPERATURE_STEP)
-        if requested > base:
+        # Keep the V1.3.3 cooling path unchanged for colder requests.
+        # Heating may request either native direction: 0 colder, 2 warmer.
+        if mode == MODE_COOL and requested > base:
             raise HomeAssistantError(
-                "Seule une consigne plus froide est actuellement autorisée. "
-                "Le sens ‘Plus chaud’ n’a pas encore été validé sur le bus."
+                "En rafraîchissement, seule une dérogation plus froide est validée."
             )
 
-        offset = round(base - requested, 1)
+        offset = abs(round(requested - base, 1))
         if offset > 5.0:
             raise HomeAssistantError(
                 f"Écart demandé {offset:.1f} °C hors plage de sécurité 0,1–5,0 °C."
@@ -512,7 +580,11 @@ class AlfeaCircuitClimate(ClimateEntity):
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self._cancel_pending_override)
         data = self._entry.data
+        global_select = er.async_get(self.hass).async_get_entity_id(
+            "select", DOMAIN, f"{self._entry.entry_id}_global_mode"
+        )
         tracked: list[str | None] = [
+            global_select,
             data["heat_mode_c1"], data["cool_mode_c1"],
             data["heat_mode_c2"], data["cool_mode_c2"],
             self._source(f"room_temp_c{self._circuit}", _PARAM[self._circuit]["room"]),

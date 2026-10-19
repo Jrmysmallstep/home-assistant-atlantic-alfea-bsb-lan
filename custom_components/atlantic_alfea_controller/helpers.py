@@ -7,6 +7,7 @@ import re
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers import entity_registry as er
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -163,6 +164,23 @@ def derive_global_mode(
     if cool and not heat:
         return MODE_COOL
     return MODE_OFF
+
+
+def effective_season(hass: HomeAssistant, entry: ConfigEntry) -> str:
+    """Return observed season, or explicitly remembered season when all circuits are protected."""
+    data = entry.data
+    observed = derive_global_mode(
+        state_value(hass, data["heat_mode_c1"]),
+        state_value(hass, data["cool_mode_c1"]),
+        state_value(hass, data["heat_mode_c2"]),
+        state_value(hass, data["cool_mode_c2"]),
+    )
+    if observed != MODE_OFF:
+        return observed
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id("select", "atlantic_alfea_controller", f"{entry.entry_id}_global_mode")
+    saved = state_value(hass, entity_id)
+    return {"Chauffage": MODE_HEAT, "Refroidissement": MODE_COOL}.get(saved, MODE_OFF)
 
 
 async def async_select_option(hass: HomeAssistant, entity_id: str, option: str) -> None:

@@ -178,6 +178,16 @@ _PROGRAMMED_SETPOINTS = (
 )
 
 
+# Custom BSB-LAN read-only parameters. These do not control the PAC or its
+# native schedules. Keep absent/unknown parameter values as unavailable.
+_CIRCUIT_PROGRAM_DIAGNOSTICS = (
+    (1, "Régime temporaire", 10110),
+    (2, "Régime temporaire", 10120),
+    (1, "Programme actif", 10112),
+    (2, "Programme actif", 10122),
+)
+
+
 @dataclass(frozen=True)
 class CalculatedSensorDescription:
     key: str
@@ -266,6 +276,7 @@ async def async_setup_entry(
         if entry.data.get(desc.key)
     ]
     entities.extend(AlfeaCircuitSeasonStateSensor(hass, entry, circuit) for circuit in (1, 2))
+    entities.extend(AlfeaCircuitProgramDiagnosticSensor(hass, entry, item) for item in _CIRCUIT_PROGRAM_DIAGNOSTICS)
     entities.extend(AlfeaProgrammedSetpointSensor(hass, entry, item) for item in _PROGRAMMED_SETPOINTS)
     if isinstance(entry.runtime_data, AlfeaRuntimeMonitor):
         entities.extend(
@@ -322,6 +333,37 @@ class AlfeaProxySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source], self.async_write_ha_state))
+
+
+class AlfeaCircuitProgramDiagnosticSensor(SensorEntity):
+    """Read-only native BSB regime and schedule diagnostics."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:calendar-clock"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, item: tuple[int, str, int]) -> None:
+        self.hass = hass
+        self._entry = entry
+        circuit, label, parameter = item
+        self._parameter = parameter
+        self._attr_name = f"C{circuit} - {label}"
+        self._attr_unique_id = f"{entry.entry_id}_program_diagnostic_{parameter}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _source(self) -> str | None:
+        return source_entity(self.hass, self._entry, f"program_diagnostic_{self._parameter}", self._parameter)
+
+    @property
+    def native_value(self) -> str | None:
+        return clean_bsb_status(state_value(self.hass, self._source()))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int]:
+        return {"parametre_bsb": self._parameter}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(track_entities(self.hass, [self._source()], self.async_write_ha_state))
 
 
 class AlfeaProgrammedSetpointSensor(SensorEntity):

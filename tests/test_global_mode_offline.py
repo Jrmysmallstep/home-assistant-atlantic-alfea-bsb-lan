@@ -62,6 +62,7 @@ class Tests(unittest.TestCase):
             "_OPTION_TO_MODE": OPTIONS,
             "MODE_OFF": MODE_OFF, "MODE_HEAT": MODE_HEAT, "MODE_COOL": MODE_COOL,
             "BSB_PROTECTION": BSB_PROTECTION,
+            "BSB_AUTO": "1 - Automatique",
             "is_protection": is_protection, "is_enabled": is_enabled,
             "state_value": lambda hass, key: hass.values.get(key),
             "async_select_option": write,
@@ -89,14 +90,14 @@ class Tests(unittest.TestCase):
             ("heat_mode_c1", BSB_PROTECTION), ("heat_mode_c2", BSB_PROTECTION)])
 
     def test_same_season_noop(self):
-        self.execute(states(h1=True), "Chauffage", [])
+        self.execute(states(h1=True), "Chauffage", [("heat_mode_c2", "1 - Automatique")])
 
     def test_both_protected_no_activation(self):
-        self.execute(states(), "Refroidissement", [], fails=True)
+        self.execute(states(), "Refroidissement", [("cool_mode_c1", "1 - Automatique"), ("cool_mode_c2", "1 - Automatique")])
 
     def test_opposite_season_blocked_before_writes(self):
-        self.execute(states(h1=True), "Refroidissement", [], fails=True)
-        self.execute(states(c1=True), "Chauffage", [], fails=True)
+        self.execute(states(h1=True), "Refroidissement", [("heat_mode_c1", BSB_PROTECTION), ("cool_mode_c1", "1 - Automatique"), ("cool_mode_c2", "1 - Automatique")])
+        self.execute(states(c1=True), "Chauffage", [("cool_mode_c1", BSB_PROTECTION), ("heat_mode_c1", "1 - Automatique"), ("heat_mode_c2", "1 - Automatique")])
 
     def test_conflict_blocked(self):
         self.execute(states(h1=True,c2=True), "Off", [], fails=True)

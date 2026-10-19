@@ -22,7 +22,7 @@ async def write(hass,entity_id,option):
     hass.values[entity_id]=option
 namespace = dict(
     HomeAssistantError=HAError, MODE_HEAT="heat", MODE_COOL="cool", MODE_OFF="off",
-    BSB_PROTECTION="0 - Mode protection",
+    BSB_PROTECTION="0 - Mode protection",BSB_AUTO="1 - Automatique",
     _OPTION_TO_MODE={"Off":"off","Chauffage":"heat","Refroidissement":"cool"},
     _MODE_TO_OPTION={"off":"Off","heat":"Chauffage","cool":"Refroidissement"},
     is_protection=is_protection,is_enabled=is_enabled,derive_global_mode=derive,
@@ -61,11 +61,10 @@ class Tests(unittest.TestCase):
         f._selected_mode="off"
         asyncio.run(f.async_select_option("Chauffage"))
         self.assertEqual(f.current_option,"Chauffage")
-        self.assertEqual(f.writes,[])
-    def test_refuse_unconfirmed_switch(self):
+        self.assertEqual(f.writes,[("h1","1 - Automatique"),("h2","1 - Automatique")])
+    def test_global_switch_to_cooling(self):
         f=Fake()
-        with self.assertRaises(HAError):
-            asyncio.run(f.async_select_option("Refroidissement"))
-        self.assertEqual(f.writes,[])
+        asyncio.run(f.async_select_option("Refroidissement"))
+        self.assertEqual(f.writes,[("c1","1 - Automatique"),("c2","1 - Automatique")])
 
 if __name__=="__main__":unittest.main()

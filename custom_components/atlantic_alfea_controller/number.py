@@ -68,7 +68,7 @@ class AlfeaOverrideDurationNumber(RestoreNumber):
         self.hass = hass
         self._entry = entry
         self._circuit = circuit
-        self._attr_name = f"Circuit {circuit} — Durée dérogation"
+        self._attr_name = f"C{circuit} - Durée dérogation"
         self._attr_unique_id = f"{entry.entry_id}_override_duration_c{circuit}"
         self._attr_native_value = _DEFAULT_DURATION_HOURS
         self._attr_device_info = DeviceInfo(
@@ -123,7 +123,7 @@ class AlfeaProgrammedSetpointNumber(NumberEntity):
         self._key = key
         self._parameter = parameter
         self._attr_unique_id = f"{entry.entry_id}_control_{key}"
-        self._attr_name = f"Circuit {circuit} — {season} — Régler {profile}"
+        self._attr_name = f"C{circuit} - {'Rafraîch.' if season == 'Rafraîchissement' else season} T. {'Conf' if profile == 'Confort' else 'Éco'}"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
 
     def _source(self) -> str | None:

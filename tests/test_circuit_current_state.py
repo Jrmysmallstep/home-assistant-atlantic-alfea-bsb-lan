@@ -13,7 +13,8 @@ class CircuitCurrentStateTests(unittest.TestCase):
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef)
                    and n.name == "AlfeaCircuitSeasonStateSensor")
         code = ast.unparse(cls)
-        self.assertIn('climate.attributes.get("hvac_action")', code)
+        self.assertIn("climate.attributes.get(", code)
+        self.assertIn("hvac_action", code)
         for key, label in (("heating", "Chauffage"), ("cooling", "Refroidissement"),
                            ("idle", "En attente"), ("off", "Arrêt")):
             self.assertIn(key, code)

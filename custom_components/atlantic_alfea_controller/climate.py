@@ -13,12 +13,14 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .const import BSB_AUTO, BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, TEMPERATURE_STEP
 from .helpers import (
     async_select_option,
     async_set_numeric_entity,
     derive_global_mode,
+    circuit_pump_is_on,
     effective_season,
     is_protection,
     round_temperature_step,
@@ -273,7 +275,7 @@ class AlfeaCircuitClimate(ClimateEntity):
 
         pump_parameter = 9031 if self._circuit == 1 else 8760
         pump_source = self._source(f"circuit_pump_c{self._circuit}", pump_parameter)
-        pump_on = state_is_on(self.hass, pump_source)
+        pump_on = circuit_pump_is_on(self.hass, self._entry, self._circuit)
         dhw_pump = state_is_on(self.hass, self._source("dhw_pump", 8820))
         if dhw_pump is True:
             return HVACAction.IDLE
@@ -602,6 +604,9 @@ class AlfeaCircuitClimate(ClimateEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self._cancel_pending_override)
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass, f"{DOMAIN}_pump_feedback_{self._entry.entry_id}", self.async_write_ha_state
+        ))
         data = self._entry.data
         global_select = er.async_get(self.hass).async_get_entity_id(
             "select", DOMAIN, f"{self._entry.entry_id}_global_mode"

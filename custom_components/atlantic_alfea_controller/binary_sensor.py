@@ -13,10 +13,11 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .clock import clock_offset_seconds, clock_source_ids, clock_source_is_fresh
 from .const import CLOCK_DESYNC_THRESHOLD_SECONDS, DOMAIN
-from .helpers import source_entity, split_bsb_status, state_is_on, state_value, track_entities
+from .helpers import circuit_pump_is_on, source_entity, split_bsb_status, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
 
 
@@ -109,7 +110,7 @@ class AlfeaCircuitPumpBinarySensor(BinarySensorEntity):
 
     @property
     def is_on(self) -> bool | None:
-        return state_is_on(self.hass, self._source())
+        return circuit_pump_is_on(self.hass, self._entry, self._circuit)
 
     @property
     def extra_state_attributes(self) -> dict[str, int | str]:
@@ -117,6 +118,9 @@ class AlfeaCircuitPumpBinarySensor(BinarySensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source()], self.async_write_ha_state))
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass, f"{DOMAIN}_pump_feedback_{self._entry.entry_id}", self.async_write_ha_state
+        ))
 
 
 class AlfeaOverrideBinarySensor(BinarySensorEntity):

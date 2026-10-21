@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.components.mqtt import async_subscribe
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -79,6 +81,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             title="Atlantic Alfea BSB-LAN",
             data=data,
         )
+
+    # Listen to BSB-LAN's read-only MQTT pump status messages, even if no HA
+    # MQTT-discovery sensor exists for these newly logged parameters.
+    feedback = hass.data.setdefault(DOMAIN, {}).setdefault("pump_feedback", {})
+    feedback[entry.entry_id] = {}
+    entry.async_on_unload(lambda: feedback.pop(entry.entry_id, None))
+
+    for circuit, parameter in ((1, 9031), (2, 8760)):
+        def _handle_pump(message, *, _circuit=circuit):
+            payload = message.payload
+            if isinstance(payload, bytes):
+                payload = payload.decode("utf-8", errors="replace")
+            payload = str(payload).strip().lower()
+            if payload in ("1", "on", "true", "activé") or payload.startswith("1 -"):
+                on = True
+            elif payload in ("0", "off", "false", "désactivé") or payload.startswith("0 -"):
+                on = False
+            else:
+                return
+            feedback[entry.entry_id][_circuit] = on
+            async_dispatcher_send(hass, f"{DOMAIN}_pump_feedback_{entry.entry_id}")
+
+        unsub = await async_subscribe(
+            hass, f"BSB-LAN/+/+/{parameter}/status", _handle_pump, qos=0
+        )
+        entry.async_on_unload(unsub)
 
     monitor = AlfeaRuntimeMonitor(hass, entry)
     entry.runtime_data = monitor

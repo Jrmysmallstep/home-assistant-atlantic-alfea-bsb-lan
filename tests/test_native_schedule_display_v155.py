@@ -54,7 +54,9 @@ class TestNativeScheduleDisplay(unittest.TestCase):
         self.assertIn("class PacSynoptiqueCard extends HTMLElement", card)
         self.assertNotIn("hass.callService(", card)
         self.assertNotIn("hass.services.", card)
-        self.assertIn("programmedRegime(c.program)", card)
+        self.assertIn("programmedRegime = raw =>", card)
+        self.assertIn("program:this._v(", card)
+        self.assertIn("Programme actif", card)
 
 if __name__ == "__main__":
     unittest.main()

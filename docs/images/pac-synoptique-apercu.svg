@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="754" viewBox="0 0 1440 754" role="img" aria-label="Aperçu du synoptique Atlantic Alféa BSB-LAN, avec unité extérieure, PAC, deux circuits de chauffage, ballon ECS et diagnostics ; valeurs illustratives.">
+<defs><linearGradient id="p" x2="0" y2="1"><stop stop-color="#1b2d40"/><stop offset="1" stop-color="#162534"/></linearGradient><linearGradient id="tank" x2="0" y2="1"><stop stop-color="#ff987d"/><stop offset=".5" stop-color="#aa6cae"/><stop offset="1" stop-color="#318ce5"/></linearGradient></defs>
+<rect x="1" y="1" width="1438" height="752" rx="23" fill="#101a26" stroke="#354b60" stroke-width="1.4"/>
+<text x="32" y="47" font-family="Arial,Helvetica,sans-serif" font-size="31" font-weight="740" fill="#f2f6fa" text-anchor="start">Atlantic Alféa Extensa Duo</text>
+<text x="1400" y="44" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="750" fill="#85adc7" text-anchor="end">SYNOPTIQUE · BSB-LAN</text>
+<text x="1400" y="64" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="400" fill="#9db1c2" text-anchor="end">Illustration — valeurs de démonstration</text>
+<rect x="30" y="82" width="286" height="538" rx="20" fill="url(#p)" stroke="#35536a" stroke-width="1.4"/>
+<rect x="403" y="82" width="273" height="538" rx="20" fill="url(#p)" stroke="#35536a" stroke-width="1.4"/>
+<rect x="835" y="82" width="572" height="166" rx="19" fill="url(#p)" stroke="#35536a" stroke-width="1.4"/>
+<rect x="835" y="262" width="572" height="166" rx="19" fill="url(#p)" stroke="#35536a" stroke-width="1.4"/>
+<rect x="835" y="442" width="572" height="166" rx="19" fill="url(#p)" stroke="#35536a" stroke-width="1.4"/>
+<path d="M316 350H403" fill="none" stroke="#40586b" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M316 350H403" fill="none" stroke="#59d7ae" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="13 11"/>
+<path d="M676 350H742V165H835" fill="none" stroke="#40586b" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M742 350H835" fill="none" stroke="#40586b" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M742 350V525H835" fill="none" stroke="#40586b" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M676 350H742V165H835" fill="none" stroke="#ff9971" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="13 11"/>
+<text x="48" y="112" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="750" fill="#aac2d6" text-anchor="start">UNITÉ EXTÉRIEURE / COMP</text>
+<rect x="73" y="158" width="197" height="186" rx="15" fill="#23394b" stroke="#6c90a6" stroke-width="1.4"/>
+<circle cx="171" cy="251" r="69" fill="#152938" stroke="#6493b0" stroke-width="2"/>
+<ellipse cx="171" cy="212" rx="17" ry="44" transform="rotate(0 171 251)" fill="#528bb0" stroke="#96bfd6" stroke-width="1"/>
+<ellipse cx="171" cy="212" rx="17" ry="44" transform="rotate(90 171 251)" fill="#528bb0" stroke="#96bfd6" stroke-width="1"/>
+<ellipse cx="171" cy="212" rx="17" ry="44" transform="rotate(180 171 251)" fill="#528bb0" stroke="#96bfd6" stroke-width="1"/>
+<ellipse cx="171" cy="212" rx="17" ry="44" transform="rotate(270 171 251)" fill="#528bb0" stroke="#96bfd6" stroke-width="1"/>
+<circle cx="171" cy="251" r="14" fill="#c2d5e1"/>
+<rect x="244" y="176" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="187.7" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="199.4" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="211.1" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="222.8" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="234.5" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="246.2" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="257.9" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="269.6" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="281.3" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="293" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="304.7" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<rect x="244" y="316.4" width="12" height="5" rx="1" fill="#6c8aa1" stroke="none" stroke-width="1.4"/>
+<text x="48" y="383" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="500" fill="#a6bed0" text-anchor="start">Air extérieur</text>
+<text x="48" y="426" font-family="Arial,Helvetica,sans-serif" font-size="38" font-weight="760" fill="#f1f5f9" text-anchor="start">9,1 °C</text>
+<path d="M48 449H298" fill="none" stroke="#3e5263" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+<text x="48" y="474" font-family="Arial,Helvetica,sans-serif" font-size="14" font-weight="500" fill="#a6bed0" text-anchor="start">Compresseur</text>
+<rect x="48" y="486" width="95" height="25" rx="11" fill="#1d433a" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="58" y="503" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#8aebcc" text-anchor="start">En marche</text>
+<path d="M48 530H298" fill="none" stroke="#3e5263" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+<text x="48" y="555" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="500" fill="#a6bed0" text-anchor="start">Modulation du compresseur</text>
+<text x="48" y="593" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="760" fill="#f2f6fa" text-anchor="start">39,0 %</text>
+<rect x="48" y="605" width="247" height="8" rx="4" fill="#304457" stroke="none" stroke-width="1.4"/>
+<rect x="48" y="605" width="98" height="8" rx="4" fill="#54cfb0" stroke="none" stroke-width="1.4"/>
+<text x="420" y="112" font-family="Arial,Helvetica,sans-serif" font-size="14.5" font-weight="740" fill="#aac2d6" text-anchor="start">PAC · MODULE HYDRAULIQUE</text>
+<rect x="420" y="127" width="135" height="25" rx="11" fill="#3c2a29" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="430" y="144" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#ffb991" text-anchor="start">Mode chauffage</text>
+<rect x="562" y="127" width="102" height="25" rx="11" fill="#21443a" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="572" y="144" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#8aecce" text-anchor="start">Chauffage actif</text>
+<path d="M463 222H520Q537 222 537 238V249Q537 264 521 264H473Q456 264 456 280V291Q456 307 473 307H521Q537 307 537 322V330Q537 346 521 346H460V357" fill="none" stroke="#56bbf1" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+<path d="M573 222H626Q643 222 643 238V249Q643 264 627 264H585Q567 264 567 280V291Q567 307 584 307H627Q643 307 643 322V330Q643 346 627 346H571V357" fill="none" stroke="#f49770" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+<text x="448" y="390" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="500" fill="#9bb6ca" text-anchor="start">Échange froid</text>
+<text x="567" y="390" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="500" fill="#9bb6ca" text-anchor="start">Échange chaud</text>
+<path d="M420 423H658" fill="none" stroke="#354d60" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" />
+<text x="420" y="450" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="500" fill="#a6bed0" text-anchor="start">Départ PAC</text>
+<text x="554" y="450" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="500" fill="#a6bed0" text-anchor="start">Retour PAC</text>
+<text x="420" y="480" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="700" fill="#eff4f8" text-anchor="start">33,2 °C</text>
+<text x="554" y="480" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="700" fill="#eff4f8" text-anchor="start">29,7 °C</text>
+<text x="420" y="521" font-family="Arial,Helvetica,sans-serif" font-size="12.5" font-weight="500" fill="#a6bed0" text-anchor="start">Consigne départ</text>
+<text x="554" y="521" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="500" fill="#a6bed0" text-anchor="start">ΔT départ – retour</text>
+<text x="420" y="549" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="700" fill="#eff4f8" text-anchor="start">34,0 °C</text>
+<text x="554" y="549" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="700" fill="#eff4f8" text-anchor="start">3,5 °C</text>
+<text x="420" y="583" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="500" fill="#90aabb" text-anchor="start">Départ / retour communs aux</text>
+<text x="420" y="601" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="500" fill="#90aabb" text-anchor="start">deux circuits</text>
+<text x="856" y="124" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="600" fill="#b0cde1" text-anchor="start">≋</text>
+<text x="897" y="119" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="730" fill="#f2f6fa" text-anchor="start">Circuit 1 · RDC</text>
+<text x="897" y="145" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="500" fill="#aac1d1" text-anchor="start">Chauffe actuellement</text>
+<circle cx="1382" cy="118" r="6.5" fill="#ff9c72"/>
+<text x="856" y="176" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="500" fill="#a5bdce" text-anchor="start">Température ambiante</text>
+<text x="1152" y="176" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="500" fill="#a5bdce" text-anchor="start">Consigne effective</text>
+<text x="856" y="208" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="740" fill="#f2f6fa" text-anchor="start">20,6 °C</text>
+<text x="1152" y="208" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="740" fill="#f2f6fa" text-anchor="start">21,0 °C</text>
+<rect x="856" y="214" width="162" height="25" rx="11" fill="#2b4254" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="866" y="231" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#bdd1df" text-anchor="start">Régime : Confort</text>
+<text x="856" y="304" font-family="Arial,Helvetica,sans-serif" font-size="34" font-weight="600" fill="#b0cde1" text-anchor="start">≋</text>
+<text x="897" y="299" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="730" fill="#f2f6fa" text-anchor="start">Circuit 2 · Étage</text>
+<text x="897" y="325" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="500" fill="#aac1d1" text-anchor="start">En attente</text>
+<circle cx="1382" cy="298" r="6.5" fill="#5c7489"/>
+<text x="856" y="356" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="500" fill="#a5bdce" text-anchor="start">Température ambiante</text>
+<text x="1152" y="356" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="500" fill="#a5bdce" text-anchor="start">Consigne effective</text>
+<text x="856" y="388" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="740" fill="#f2f6fa" text-anchor="start">20,9 °C</text>
+<text x="1152" y="388" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="740" fill="#f2f6fa" text-anchor="start">19,5 °C</text>
+<rect x="856" y="394" width="140" height="25" rx="11" fill="#2b4254" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="866" y="411" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#bdd1df" text-anchor="start">Régime : Éco</text>
+<rect x="855" y="464" width="27" height="43" rx="8" fill="url(#tank)" stroke="#91acc4" stroke-width="1.4"/>
+<text x="897" y="479" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="730" fill="#f2f6fa" text-anchor="start">ECS · Ballon</text>
+<text x="897" y="505" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="500" fill="#aac1d1" text-anchor="start">En attente</text>
+<circle cx="1382" cy="478" r="6.5" fill="#5c7489"/>
+<text x="856" y="536" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="500" fill="#a5bdce" text-anchor="start">Température ballon</text>
+<text x="1152" y="536" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="500" fill="#a5bdce" text-anchor="start">Consigne affichée</text>
+<text x="856" y="568" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="740" fill="#f2f6fa" text-anchor="start">51,2 °C</text>
+<text x="1152" y="568" font-family="Arial,Helvetica,sans-serif" font-size="29" font-weight="740" fill="#f2f6fa" text-anchor="start">55,0 °C</text>
+<rect x="856" y="574" width="140" height="25" rx="11" fill="#2b4254" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="866" y="591" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#bdd1df" text-anchor="start">Pompe arrêtée</text>
+<rect x="30" y="636" width="1377" height="43" rx="9" fill="#192a39" stroke="#39556b" stroke-width="1.4"/>
+<text x="49" y="665" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="800" fill="#96b3c7" text-anchor="start">›</text>
+<text x="74" y="665" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="700" fill="#f0f5f8" text-anchor="start">Alarmes et surveillance</text>
+<rect x="1250" y="644" width="140" height="25" rx="11" fill="#2b4254" stroke="#3f5a6f" stroke-width="1.4"/>
+<text x="1260" y="661" font-family="Arial,Helvetica,sans-serif" font-size="12" font-weight="700" fill="#bdd1df" text-anchor="start">0 alarme active</text>
+<rect x="30" y="690" width="1377" height="43" rx="9" fill="#192a39" stroke="#39556b" stroke-width="1.4"/>
+<text x="49" y="719" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="800" fill="#96b3c7" text-anchor="start">›</text>
+<text x="74" y="719" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="700" fill="#f0f5f8" text-anchor="start">Diagnostics et capteurs complémentaires · 62 entités reconnues</text>
+</svg>

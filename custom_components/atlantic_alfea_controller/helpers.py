@@ -119,6 +119,17 @@ def state_is_on(hass: HomeAssistant, entity_id: str | None) -> bool | None:
     return None
 
 
+def circuit_pump_is_on(hass: HomeAssistant, entry: ConfigEntry, circuit: int) -> bool | None:
+    """Find circuit pump status from HA source or BSB-LAN MQTT."""
+    parameter = 9031 if circuit == 1 else 8760
+    source = source_entity(hass, entry, f"circuit_pump_c{circuit}", parameter)
+    value = state_is_on(hass, source)
+    if value is not None:
+        return value
+    from .const import DOMAIN
+    return hass.data.get(DOMAIN, {}).get("pump_feedback", {}).get(entry.entry_id, {}).get(circuit)
+
+
 def split_bsb_status(value: str | None) -> tuple[int | None, str | None]:
     """Split a BSB status into its optional numeric code and readable text."""
     if value is None:

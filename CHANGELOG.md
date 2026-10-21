@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.9 — États des circuits et circulateurs
+
+- Les capteurs C1 et C2 « État actuel » affichent Chauffage, Refroidissement, En attente ou Arrêt d'après l'action Climate, plutôt que le régime BSB brut.
+- Le régime BSB natif reste disponible dans les attributs diagnostics des deux capteurs.
+- Un état BSB manquant ne masque plus, à lui seul, le retour valide d'un circulateur.
+- Surveillance en lecture seule : C1 (relais QX1, paramètre 9031) et C2 (pompe, paramètre 8760), avec retour MQTT de secours.
+- Vérifications GitHub mises à jour. Aucune modification des commandes, consignes, programmations ou dérogations PAC.
+
+
 ## 1.5.7 — Éditeur visuel Lovelace
 
 - Éditeur visuel natif de la carte PAC Synoptique (sans extension graphique externe).

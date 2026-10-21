@@ -257,13 +257,11 @@ class AlfeaCircuitClimate(ClimateEntity):
 
     @property
     def hvac_action(self) -> HVACAction:
-        """Return real circuit activity, not merely the selected season/program.
+        """Use each circuit's pump feedback before generator-wide heuristics.
 
-        BSB 8004/8025 can report a cooling regime while there is no thermal
-        demand at all. Conversely, compressor state 8400 is global and can be
-        active for the other circuit or for ECS. We therefore combine the
-        compressor state with this circuit's room temperature and effective
-        target (8741/8771).
+        C1 QX1 (9031) and C2 pump state (8760) were matched to physical
+        circulation on the reference Alfea. Compressor activity does not
+        determine the state of each hydraulic circuit independently.
         """
         mode = self._mode()
         if mode == MODE_OFF or self._circuit_in_protection(mode):
@@ -273,32 +271,23 @@ class AlfeaCircuitClimate(ClimateEntity):
         if status_is_blocked_or_idle(circuit_state):
             return HVACAction.IDLE
 
-        # A logical 8003 ``Charge...`` request is not sufficient to stop the
-        # climate action: it can stay present while the generator is cooling.
-        # The physical ECS outputs are the reliable proof that the generator is
-        # actually assigned to DHW. This logic is season-independent.
+        pump_parameter = 9031 if self._circuit == 1 else 8760
+        pump_source = self._source(f"circuit_pump_c{self._circuit}", pump_parameter)
+        pump_on = state_is_on(self.hass, pump_source)
         dhw_pump = state_is_on(self.hass, self._source("dhw_pump", 8820))
         if dhw_pump is True:
             return HVACAction.IDLE
 
-        compressor_on = state_is_on(self.hass, self._source("compressor_state", 8400))
-        if compressor_on is False:
+        # The pump proves circulation, not instantaneous thermal power.
+        # Home Assistant's HVACAction represents circuit activity here.
+        if pump_on is True:
+            return HVACAction.HEATING if mode == MODE_HEAT else HVACAction.COOLING
+        if pump_on is False:
             return HVACAction.IDLE
 
-        current = self.current_temperature
-        target = self.target_temperature
-        if compressor_on is True and current is not None and target is not None:
-            # Small margin only prevents floating point chatter; the PAC itself
-            # remains responsible for its true hysteresis and regulation.
-            margin = 0.05
-            if mode == MODE_COOL:
-                return HVACAction.COOLING if current > target + margin else HVACAction.IDLE
-            return HVACAction.HEATING if current < target - margin else HVACAction.IDLE
-
-        # If a source is temporarily unavailable, do not invent inactivity when
-        # the BSB circuit state clearly reports an active regime.
-        if compressor_on is True:
-            return HVACAction.HEATING if mode == MODE_HEAT else HVACAction.COOLING
+        # Unknown pump feedback must not be mistaken for an OFF signal. With
+        # no circuit-specific proof, remain conservative instead of attributing
+        # global compressor activity to one or both circuits.
         return HVACAction.IDLE
 
     @property
@@ -628,6 +617,7 @@ class AlfeaCircuitClimate(ClimateEntity):
             ),
             self._source(f"heat_state_c{self._circuit}", _PARAM[self._circuit]["heat_state"]),
             self._source(f"cool_state_c{self._circuit}", _PARAM[self._circuit]["cool_state"]),
+            self._source(f"circuit_pump_c{self._circuit}", 9031 if self._circuit == 1 else 8760),
             self._source("compressor_state", 8400),
             self._source("dhw_state", 8003),
             self._source("dhw_pump", 8820),

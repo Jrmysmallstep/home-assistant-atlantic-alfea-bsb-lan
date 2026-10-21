@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.5.1 (intégration V1.5.10) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.6.0 (intégration V1.5.11) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.10
+ * Inclus dans atlantic_alfea_controller 1.5.11
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -363,7 +363,7 @@ class PacSynoptiqueCard extends HTMLElement {
         <span class="state-dot ${branchTone(c)}"></span></div>
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
-      <div class="out-foot">${chip(c.pump===true?'Circulateur en marche':c.pump===false?'Circulateur arrêté':'Circulateur indisponible',c.pump===true?'active':'dim')}
+      <div class="out-foot">${chip(c.native??'État BSB-LAN indisponible','dim')}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;
     const alarmsClass=alertActive.length?'alerted':'quiet';
@@ -392,6 +392,9 @@ class PacSynoptiqueCard extends HTMLElement {
         [`C${i} — Chauffage Confort`,`heatComfort${i}`,'°C'],[`C${i} — Chauffage Éco`,`heatEco${i}`,'°C'],
         [`C${i} — Rafraîchissement Confort`,`coolComfort${i}`,'°C'],[`C${i} — Rafraîchissement Éco`,`coolEco${i}`,'°C']
       ])
+    ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
+    const diagPumps=this._diagGroup('Capteurs complémentaires / circulateurs',[
+      ['Circulateur C1 · RDC','pump1',''],['Circulateur C2 · Étage','pump2','']
     ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
     const diagEcs=this._diagGroup('Eau chaude sanitaire',[
       ['Production réelle','ecsProduction',''],['État BSB','ecsState',''],
@@ -560,20 +563,46 @@ class PacSynoptiqueCard extends HTMLElement {
       .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
       .detail-row:last-child{border:0}.detail-row span{color:var(--sub);min-width:0}.detail-row strong{text-align:right;font-weight:700;max-width:58%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
       .detail-row strong.na{color:var(--muted)}
-      @container (max-width:1050px){
-        .wrap{padding:17px}
-        .schematic{grid-template-columns:minmax(145px,.79fr) 27px minmax(215px,.96fr) 44px minmax(255px,1.58fr)}
-        .machine,.pac{padding:14px 11px}.pac-metrics>div strong{font-size:14px}.out-values>div strong{font-size:17px}
-        .out-title{font-size:13px}.fan-shell{width:min(100%,146px)}
+      /* Width is measured in the actual Lovelace card, not screen pixels. */
+      @container (max-width:1100px){
+        .wrap{padding:16px}
+        .schematic{grid-template-columns:minmax(128px,.85fr) 24px minmax(175px,1fr) 34px minmax(220px,1.6fr);gap:8px 0}
+        .machine,.pac{padding:12px 10px;min-width:0}
+        .out-values>div strong{font-size:16px}
+        .out-title{font-size:12px}
+        .output-card{padding:10px;min-width:0}
+        .fan-shell{width:min(100%,130px)}
+        .pac-metrics>div strong{font-size:14px}
+        .big-value{font-size:24px}
       }
-      @container (max-width:720px){
-        .header{flex-direction:column;gap:10px}.header-right{justify-content:flex-start}
-        .schematic{display:flex;flex-direction:column;gap:10px}
-        .machine,.pac{min-height:unset}.machine{display:grid;grid-template-columns:100px 1fr;gap:7px 13px;align-items:center}
-        .machine .mini-head{grid-column:1/3}.machine .machine-art{min-height:100px;grid-row:2/5}
-        .machine .fan-shell{width:94px}.machine .machine-stat{padding-top:5px}
-        .pac-art{min-height:85px}.outs{display:flex;flex-direction:column;gap:10px}
-        .inlink,.outlink{display:none}.output-card{min-height:120px}.diag-grid{grid-template-columns:1fr}
+      /* Vertical layout only when the horizontal composition is no longer legible. */
+      @container (max-width:680px){
+        .schematic{display:flex;flex-direction:column;gap:0}
+        .machine,.pac{min-height:unset;width:100%}
+        .machine{display:grid;grid-template-columns:100px minmax(0,1fr);gap:7px 13px;align-items:center}
+        .machine .mini-head{grid-column:1/3}
+        .machine .machine-art{min-height:100px;grid-row:2/5}
+        .machine .fan-shell{width:94px}
+        .machine .machine-stat{padding-top:5px}
+        .pac-art{min-height:85px}
+        .inlink,.outlink{display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+        .inlink .linksvg,.outlink .linksvg{height:100%;width:100%;overflow:hidden}
+        .outs{display:flex;flex-direction:column;gap:10px;position:relative;padding-left:22px;margin-top:0}
+        .outs:before{content:'';position:absolute;left:9px;top:0;bottom:55px;width:7px;border-radius:4px;background:var(--pipe)}
+        .output-card{min-height:115px;position:relative;overflow:visible}
+        .output-card:before{content:'';position:absolute;left:-23px;top:50%;width:23px;height:7px;margin-top:-3px;background:var(--pipe)}
+        .output-card.heat:after,.output-card.cool:after{content:'';position:absolute;left:-23px;top:50%;width:23px;height:4px;margin-top:-2px;background:var(--red);background-image:repeating-linear-gradient(90deg,transparent 0 7px,var(--surface2) 7px 11px);background-size:22px 4px;animation:branchFlow 1.1s linear infinite}
+        .output-card.cool:after{background-color:var(--blue)}
+        @keyframes branchFlow{to{background-position:22px 0}}
+        .diag-grid{grid-template-columns:1fr}
+        .out-values{grid-template-columns:repeat(2,minmax(0,1fr))}
+      }
+      @container (max-width:400px){
+        .machine{grid-template-columns:80px minmax(0,1fr)}
+        .machine .fan-shell{width:76px}
+        .pac-metrics{gap:8px}
+        .out-values{grid-template-columns:1fr 1fr}
+        .out-values>div strong{font-size:16px}
       }
       @media(prefers-reduced-motion:reduce){.linksvg path.live,.fan-shell.running .blades,.exchanger.running .exch-col svg{animation:none!important}}
     </style>
@@ -636,7 +665,7 @@ class PacSynoptiqueCard extends HTMLElement {
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>
         <p class="details-note">Lecture seule. « — » signifie : entité absente, désactivée, inconnue ou non publiée par BSB-LAN. Les températures de départ cibles des circuits ne sont pas des mesures.</p>
-        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}${diagEcs}</div>
+        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}${diagPumps}${diagEcs}</div>
       </details>`:''}
 
     </div></ha-card>`;

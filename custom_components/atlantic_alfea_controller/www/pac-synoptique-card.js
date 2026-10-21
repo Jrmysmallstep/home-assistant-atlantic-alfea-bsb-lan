@@ -186,13 +186,16 @@ class PacSynoptiqueCard extends HTMLElement {
   setConfig(config) {
     if(!config || typeof config!=='object') throw new Error('Configuration de la carte absente');
     if(config.entities && (typeof config.entities!=='object' || Array.isArray(config.entities))) throw new Error('entities doit être un objet de correspondance');
+    if(config.show_links != null && typeof config.show_links !== 'boolean') throw new Error('show_links doit être un booléen');
+    if(config.animate_flows != null && typeof config.animate_flows !== 'boolean') throw new Error('animate_flows doit être un booléen');
+    if(config.show_pump_badges != null && typeof config.show_pump_badges !== 'boolean') throw new Error('show_pump_badges doit être un booléen');
     if(config.layout_style != null && !['classic','clean'].includes(config.layout_style)) {
       throw new Error('layout_style doit être classic ou clean');
     }
     if(config.theme_mode != null && !['auto','light','dark'].includes(config.theme_mode)) {
       throw new Error('theme_mode doit être auto, light ou dark');
     }
-    this._config={title:'Atlantic Alféa Extensa Duo',show_diagnostics:true,theme_mode:'auto',...config};
+    this._config={title:'Atlantic Alféa Extensa Duo',show_diagnostics:true,theme_mode:'auto',layout_style:'classic',...config};
     this._ids=null;
     this._lastSignature='';
     if(this._hass) this.hass=this._hass;
@@ -214,6 +217,8 @@ class PacSynoptiqueCard extends HTMLElement {
     this.dataset.pacTheme = selected === 'auto' ? 'auto' : selected;
     this.dataset.pacScheme = rendered;
     this.dataset.layoutStyle = this._config.layout_style === 'clean' ? 'clean' : 'classic';
+    this.dataset.showLinks = this._config.show_links === false ? 'false' : 'true';
+    this.dataset.animateFlows = this._config.animate_flows === false ? 'false' : 'true';
     // Recensement des entités au démarrage et toutes les 30 s pour prendre en compte les capteurs activés.
     if(!this._ids || Date.now()-this._lastDiscovery>30000) {
       this._ids=this._discover();this._lastDiscovery=Date.now();
@@ -368,7 +373,7 @@ class PacSynoptiqueCard extends HTMLElement {
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
       <div class="out-foot">${chip(c.native??'État BSB-LAN indisponible','dim')}
-        ${c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
+        ${this._config.show_pump_badges!==false && c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;
     const alarmsClass=alertActive.length?'alerted':'quiet';
@@ -615,15 +620,23 @@ class PacSynoptiqueCard extends HTMLElement {
       /* Présentation épurée facultative : aucune liaison hydraulique illustrative.
          Les trois usages restent séparés ; leurs repères reflètent le mode réel. */
       :host([data-layout-style="clean"]) .schematic {
-        grid-template-columns:minmax(0,0.95fr) minmax(0,1.12fr) minmax(0,1.5fr);
+        grid-template-columns:minmax(0,.95fr) 24px minmax(0,1.12fr) 38px minmax(0,1.5fr);
         grid-template-rows:repeat(3,minmax(130px,auto));
         column-gap:14px;row-gap:12px;
       }
       :host([data-layout-style="clean"]) .machine {grid-column:1;grid-row:1/4}
-      :host([data-layout-style="clean"]) .pac {grid-column:2;grid-row:1/4}
-      :host([data-layout-style="clean"]) .outs {grid-column:3;grid-row:1/4;gap:12px;padding:0;margin:0}
-      :host([data-layout-style="clean"]) .inlink,
-      :host([data-layout-style="clean"]) .outlink {display:none!important}
+      :host([data-layout-style="clean"]) .inlink {grid-column:2;grid-row:1/4}
+      :host([data-layout-style="clean"]) .pac {grid-column:3;grid-row:1/4}
+      :host([data-layout-style="clean"]) .outlink {grid-column:4;grid-row:1/4}
+      :host([data-layout-style="clean"]) .outs {grid-column:5;grid-row:1/4;gap:12px;padding:0;margin:0}
+      /* Liaison graphique horizontale : équilibre entre finesse et lisibilité. */
+      :host([data-layout-style="clean"]) .linksvg path.track {stroke-width:5;opacity:.65}
+      :host([data-layout-style="clean"]) .linksvg path.live {stroke-width:3;stroke-dasharray:10 15}
+      :host([data-layout-style="clean"][data-show-links="false"]) .inlink,
+      :host([data-layout-style="clean"][data-show-links="false"]) .outlink {visibility:hidden}
+      :host([data-animate-flows="false"]) .linksvg path.live {animation:none!important;stroke-dasharray:none}
+      :host([data-animate-flows="false"]) .exchanger.running .exch-col svg,
+      :host([data-animate-flows="false"]) .fan-shell.running .blades {animation:none!important}
       :host([data-layout-style="clean"]) .outs:before,
       :host([data-layout-style="clean"]) .output-card:before,
       :host([data-layout-style="clean"]) .output-card:after {display:none!important;content:none!important}
@@ -656,6 +669,8 @@ class PacSynoptiqueCard extends HTMLElement {
         :host([data-layout-style="clean"]) .schematic {
           display:flex;flex-direction:column;gap:12px;
         }
+        :host([data-layout-style="clean"]) .inlink,
+        :host([data-layout-style="clean"]) .outlink {display:none!important}
         :host([data-layout-style="clean"]) .machine,
         :host([data-layout-style="clean"]) .pac {min-height:unset;width:100%}
         :host([data-layout-style="clean"]) .outs {
@@ -744,6 +759,14 @@ class PacSynoptiqueCardEditor extends HTMLElement {
       if (element?.id==='pac-theme-choice') {
         const theme=element.value;
         if (['auto','light','dark'].includes(theme)) this._changed('theme_mode',theme);
+      } else if (element?.id==='pac-layout-choice') {
+        this._changed('layout_style',element.value);
+      } else if (element?.id==='pac-show-links') {
+        this._changed('show_links',Boolean(element.checked));
+      } else if (element?.id==='pac-animate-flows') {
+        this._changed('animate_flows',Boolean(element.checked));
+      } else if (element?.id==='pac-show-pump-badges') {
+        this._changed('show_pump_badges',Boolean(element.checked));
       } else if (element?.id==='pac-show-diagnostics') {
         this._changed('show_diagnostics',Boolean(element.checked));
       }
@@ -771,6 +794,10 @@ class PacSynoptiqueCardEditor extends HTMLElement {
     const theme=['auto','light','dark'].includes(config.theme_mode)?config.theme_mode:'auto';
     const selected=value=>theme===value?' selected':'';
     const checked=config.show_diagnostics!==false?' checked':'';
+    const checkedLinks=config.show_links!==false?' checked':'';
+    const checkedMotion=config.animate_flows!==false?' checked':'';
+    const checkedPumps=config.show_pump_badges!==false?' checked':'';
+    const selectedLayout=(config.layout_style||'classic');
     this.shadowRoot.innerHTML=`
       <style>
         :host{display:block;color:var(--primary-text-color,#243443);
@@ -802,6 +829,28 @@ class PacSynoptiqueCardEditor extends HTMLElement {
             <option value="dark"${selected('dark')}>Sombre</option>
           </select>
           <div class="hint">Automatique suit le thème actuellement utilisé dans Home Assistant.</div>
+        </div>
+        <div class="field">
+          <label for="pac-layout-choice">Présentation des circuits</label>
+          <select id="pac-layout-choice">
+            <option value="clean"${selectedLayout==='clean'?' selected':''}>Épurée — traits horizontaux discrets, sans liaisons en portrait</option>
+            <option value="classic"${selectedLayout==='classic'?' selected':''}>Classique — tuyauterie schématique</option>
+          </select>
+          <div class="hint">En disposition étroite, la version épurée affiche des cartes indépendantes. Les raccordements ne représentent pas un schéma hydraulique certifié.</div>
+        </div>
+        <div class="field">
+          <label class="toggle" for="pac-show-links">
+            <input type="checkbox" id="pac-show-links"${checkedLinks}>
+            Afficher les raccordements en disposition horizontale
+          </label>
+          <label class="toggle" for="pac-animate-flows">
+            <input type="checkbox" id="pac-animate-flows"${checkedMotion}>
+            Animer les activités (ventilateur, échangeurs et traits)
+          </label>
+          <label class="toggle" for="pac-show-pump-badges">
+            <input type="checkbox" id="pac-show-pump-badges"${checkedPumps}>
+            Afficher l'état des circulateurs sous les circuits
+          </label>
         </div>
         <div class="field">
           <label class="toggle" for="pac-show-diagnostics">

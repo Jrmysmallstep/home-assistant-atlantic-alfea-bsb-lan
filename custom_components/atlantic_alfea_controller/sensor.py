@@ -403,7 +403,11 @@ class AlfeaProgrammedSetpointSensor(SensorEntity):
 
 
 class AlfeaCircuitSeasonStateSensor(SensorEntity):
-    """Expose the season-appropriate circuit status without hiding raw sensors."""
+    """Human-readable circuit activity, consistent with the Climate entity.
+
+    Keep the existing unique_id/entity_id and expose the native BSB status
+    separately as diagnostic attributes; the raw status is not thermal activity.
+    """
 
     _attr_has_entity_name = True
     _attr_icon = "mdi:home-thermometer"
@@ -417,56 +421,59 @@ class AlfeaCircuitSeasonStateSensor(SensorEntity):
         self._attr_unique_id = f"{entry.entry_id}_circuit_{circuit}_current_state"
         self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
 
-    def _season(self) -> str:
-        return effective_season(self.hass, self._entry)
+    def _climate_entity(self) -> str | None:
+        return er.async_get(self.hass).async_get_entity_id(
+            "climate", DOMAIN, f"{self._entry.entry_id}_circuit_{self._circuit}"
+        )
+
+    def _raw_status(self) -> tuple[int, str | None]:
+        season = effective_season(self.hass, self._entry)
+        if season == MODE_HEAT:
+            parameter = 8000 if self._circuit == 1 else 8001
+            prefix = "heat"
+        elif season == MODE_COOL:
+            parameter = 8004 if self._circuit == 1 else 8025
+            prefix = "cool"
+        else:
+            return 0, None
+        return parameter, state_value(
+            self.hass,
+            source_entity(self.hass, self._entry, f"{prefix}_state_c{self._circuit}", parameter),
+        )
 
     @property
     def native_value(self) -> str | None:
-        season = self._season()
-        if season not in (MODE_HEAT, MODE_COOL):
-            return "Arrêt"
-        prefix = "heat" if season == MODE_HEAT else "cool"
-        mode_entity = self._entry.data.get(f"{prefix}_mode_c{self._circuit}")
-        mode_value = state_value(self.hass, mode_entity)
-        if mode_value is None:
+        climate_id = self._climate_entity()
+        climate = self.hass.states.get(climate_id) if climate_id else None
+        if climate is None or climate.state in ("unknown", "unavailable"):
             return None
-        if is_protection(mode_value):
-            return "Mode protection"
-        state_param = (8000 if self._circuit == 1 else 8001) if season == MODE_HEAT else (8004 if self._circuit == 1 else 8025)
-        raw = state_value(
-            self.hass,
-            source_entity(self.hass, self._entry, f"{prefix}_state_c{self._circuit}", state_param),
-        )
-        return clean_bsb_status(raw)
+        action = climate.attributes.get("hvac_action")
+        labels = {
+            "heating": "Chauffage",
+            "cooling": "Refroidissement",
+            "idle": "En attente",
+            "off": "Arrêt",
+        }
+        return labels.get(action)
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | int]:
-        season = self._season()
-        parameter = (
-            (8000 if self._circuit == 1 else 8001)
-            if season == MODE_HEAT
-            else (8004 if self._circuit == 1 else 8025) if season == MODE_COOL else 0
-        )
-        return {"saison": season, "parametre_etat_bsb": parameter}
+    def extra_state_attributes(self) -> dict[str, str | int | None]:
+        parameter, raw = self._raw_status()
+        return {
+            "saison": effective_season(self.hass, self._entry),
+            "parametre_etat_bsb": parameter,
+            "regime_bsb": clean_bsb_status(raw),
+            "etat_bsb_brut": raw,
+        }
 
     async def async_added_to_hass(self) -> None:
-        data = self._entry.data
-        global_select = er.async_get(self.hass).async_get_entity_id(
-            "select", DOMAIN, f"{self._entry.entry_id}_global_mode"
-        )
-        tracked = [global_select] + [
-            data.get(f"{prefix}_mode_c{circuit}")
-            for prefix in ("heat", "cool")
-            for circuit in (1, 2)
-        ]
+        climate_id = self._climate_entity()
+        tracked = [climate_id]
         for prefix, params in (("heat", (8000, 8001)), ("cool", (8004, 8025))):
-            tracked.append(
-                source_entity(
-                    self.hass, self._entry,
-                    f"{prefix}_state_c{self._circuit}",
-                    params[self._circuit - 1],
-                )
-            )
+            tracked.append(source_entity(
+                self.hass, self._entry,
+                f"{prefix}_state_c{self._circuit}", params[self._circuit - 1],
+            ))
         self.async_on_remove(track_entities(self.hass, tracked, self.async_write_ha_state))
 
 

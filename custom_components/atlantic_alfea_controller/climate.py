@@ -270,7 +270,9 @@ class AlfeaCircuitClimate(ClimateEntity):
             return HVACAction.OFF
 
         circuit_state = self._circuit_status(mode)
-        if status_is_blocked_or_idle(circuit_state):
+        # A missing status is not proof that circulation stopped. Only an
+        # explicit BSB block/idle state can veto valid pump feedback.
+        if circuit_state is not None and status_is_blocked_or_idle(circuit_state):
             return HVACAction.IDLE
 
         pump_parameter = 9031 if self._circuit == 1 else 8760

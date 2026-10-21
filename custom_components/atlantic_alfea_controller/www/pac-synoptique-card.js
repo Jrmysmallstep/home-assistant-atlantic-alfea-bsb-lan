@@ -186,6 +186,9 @@ class PacSynoptiqueCard extends HTMLElement {
   setConfig(config) {
     if(!config || typeof config!=='object') throw new Error('Configuration de la carte absente');
     if(config.entities && (typeof config.entities!=='object' || Array.isArray(config.entities))) throw new Error('entities doit être un objet de correspondance');
+    if(config.layout_style != null && !['classic','clean'].includes(config.layout_style)) {
+      throw new Error('layout_style doit être classic ou clean');
+    }
     if(config.theme_mode != null && !['auto','light','dark'].includes(config.theme_mode)) {
       throw new Error('theme_mode doit être auto, light ou dark');
     }
@@ -210,6 +213,7 @@ class PacSynoptiqueCard extends HTMLElement {
     this._lastThemeName = hass.themes?.theme;
     this.dataset.pacTheme = selected === 'auto' ? 'auto' : selected;
     this.dataset.pacScheme = rendered;
+    this.dataset.layoutStyle = this._config.layout_style === 'clean' ? 'clean' : 'classic';
     // Recensement des entités au démarrage et toutes les 30 s pour prendre en compte les capteurs activés.
     if(!this._ids || Date.now()-this._lastDiscovery>30000) {
       this._ids=this._discover();this._lastDiscovery=Date.now();
@@ -356,7 +360,7 @@ class PacSynoptiqueCard extends HTMLElement {
     const air=temp(this._v('outdoor'));
     const pacDelta= nvalue(this._v('flow'))!==null && nvalue(this._v('returnTemp'))!==null ?
       `${decimal.format(nvalue(this._v('flow'))-nvalue(this._v('returnTemp')))} °C` : '—';
-    const circHtml=c => `<section class="output-card ${branchTone(c)}" aria-label="Circuit ${c.number} ${c.number===1?'RDC':'étage'}">
+    const circHtml=c => `<section class="output-card ${branchTone(c)} regime-${c.mode==='heat'?'heat':c.mode==='cool'?'cool':'idle'}" aria-label="Circuit ${c.number} ${c.number===1?'RDC':'étage'}">
       <div class="out-top"><div class="out-ico">${icon(c.isCooling || (c.mode==='cool' && !c.isHeating)?'snow':'radiant')}</div>
         <div class="out-head"><div class="out-title">Circuit ${c.number} <span>· ${c.number===1?'RDC':'Étage'}</span></div>
           <div class="out-status">${html(c.actionText)}</div></div>
@@ -364,6 +368,7 @@ class PacSynoptiqueCard extends HTMLElement {
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
       <div class="out-foot">${chip(c.native??'État BSB-LAN indisponible','dim')}
+        ${c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;
     const alarmsClass=alertActive.length?'alerted':'quiet';
@@ -605,6 +610,58 @@ class PacSynoptiqueCard extends HTMLElement {
         .pac-metrics{gap:8px}
         .out-values{grid-template-columns:1fr 1fr}
         .out-values>div strong{font-size:16px}
+      }
+
+      /* Présentation épurée facultative : aucune liaison hydraulique illustrative.
+         Les trois usages restent séparés ; leurs repères reflètent le mode réel. */
+      :host([data-layout-style="clean"]) .schematic {
+        grid-template-columns:minmax(0,0.95fr) minmax(0,1.12fr) minmax(0,1.5fr);
+        grid-template-rows:repeat(3,minmax(130px,auto));
+        column-gap:14px;row-gap:12px;
+      }
+      :host([data-layout-style="clean"]) .machine {grid-column:1;grid-row:1/4}
+      :host([data-layout-style="clean"]) .pac {grid-column:2;grid-row:1/4}
+      :host([data-layout-style="clean"]) .outs {grid-column:3;grid-row:1/4;gap:12px;padding:0;margin:0}
+      :host([data-layout-style="clean"]) .inlink,
+      :host([data-layout-style="clean"]) .outlink {display:none!important}
+      :host([data-layout-style="clean"]) .outs:before,
+      :host([data-layout-style="clean"]) .output-card:before,
+      :host([data-layout-style="clean"]) .output-card:after {display:none!important;content:none!important}
+      :host([data-layout-style="clean"]) .output-card {
+        border-left:3px solid var(--panel-line);
+        overflow:hidden;
+        transition:border-color .25s ease,box-shadow .25s ease;
+      }
+      :host([data-layout-style="clean"]) .output-card.regime-heat {
+        border-left-color:color-mix(in srgb,var(--red) 45%,var(--panel-line));
+      }
+      :host([data-layout-style="clean"]) .output-card.regime-cool {
+        border-left-color:color-mix(in srgb,var(--blue) 45%,var(--panel-line));
+      }
+      :host([data-layout-style="clean"]) .output-card.heat {
+        border-left-color:var(--red);
+        box-shadow:inset 3px 0 0 color-mix(in srgb,var(--red) 35%,transparent);
+      }
+      :host([data-layout-style="clean"]) .output-card.cool {
+        border-left-color:var(--blue);
+        box-shadow:inset 3px 0 0 color-mix(in srgb,var(--blue) 35%,transparent);
+      }
+      :host([data-layout-style="clean"]) .output-card.electric {border-left-color:var(--amber)}
+      :host([data-layout-style="clean"]) .output-card[aria-label="Eau chaude sanitaire"]:not(.electric) {
+        border-left-color:color-mix(in srgb,#9276cf 48%,var(--panel-line));
+      }
+      :host([data-layout-style="clean"]) .output-card.regime-heat .out-ico {color:var(--red)}
+      :host([data-layout-style="clean"]) .output-card.regime-cool .out-ico {color:var(--blue)}
+      @container (max-width:900px) {
+        :host([data-layout-style="clean"]) .schematic {
+          display:flex;flex-direction:column;gap:12px;
+        }
+        :host([data-layout-style="clean"]) .machine,
+        :host([data-layout-style="clean"]) .pac {min-height:unset;width:100%}
+        :host([data-layout-style="clean"]) .outs {
+          display:flex;flex-direction:column;gap:10px;margin:0;padding:0;width:100%;
+        }
+        :host([data-layout-style="clean"]) .output-card {min-height:116px}
       }
       @media(prefers-reduced-motion:reduce){.linksvg path.live,.fan-shell.running .blades,.exchanger.running .exch-col svg{animation:none!important}}
     </style>

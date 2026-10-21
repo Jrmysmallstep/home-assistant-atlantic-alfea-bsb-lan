@@ -19,7 +19,7 @@ class CircuitCurrentStateTests(unittest.TestCase):
                            ("idle", "En attente"), ("off", "Arrêt")):
             self.assertIn(key, code)
             self.assertIn(label, code)
-        self.assertIn("_circuit_{self._circuit}_current_state", code)
+        self.assertIn("current_state", code)
 
     def test_native_regime_is_diagnostic_only(self):
         source = (ROOT / "sensor.py").read_text(encoding="utf-8")

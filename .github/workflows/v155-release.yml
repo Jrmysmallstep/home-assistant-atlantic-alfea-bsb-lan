@@ -1,0 +1,49 @@
+name: Atlantic Alféa V1.5.5 — tests & publication
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntaxe Python
+        run: python -m compileall -q custom_components/atlantic_alfea_controller tests
+      - name: Tests hors ligne
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: JavaScript carte
+        run: node --check custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js
+      - name: Version du manifeste
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("custom_components/atlantic_alfea_controller/manifest.json").read_text())
+          assert manifest["version"] == "1.5.5"
+          PY
+  release:
+    needs: [checks]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publier V1.5.5 si absente
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view V1.5.5 >/dev/null 2>&1; then
+            echo "La release V1.5.5 existe déjà"
+            exit 0
+          fi
+          gh release create V1.5.5 \
+            --target "$GITHUB_SHA" \
+            --title "Atlantic Alféa BSB-LAN V1.5.5" \
+            --notes-file docs/RELEASE_NOTES_V155.md \
+            --latest

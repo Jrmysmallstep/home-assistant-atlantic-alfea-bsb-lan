@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from homeassistant.components.http import StaticPathConfig
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
@@ -11,6 +15,24 @@ from .const import DOMAIN, PLATFORMS
 from .discovery import discover_mapping
 from .runtime import AlfeaRuntimeMonitor
 from .polling import async_start_data_polling
+
+
+async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
+    """Expose the bundled read-only Lovelace card through Home Assistant HTTP.
+
+    The integration ships its static asset in HACS.  This registers only a
+    GET endpoint; it never modifies dashboards, resources, or PAC commands.
+    """
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(
+                "/alfea-synoptique/pac-synoptique-card.js",
+                str(Path(__file__).resolve().parent / "www" / "pac-synoptique-card.js"),
+                False,
+            )
+        ]
+    )
+    return True
 
 
 def _remove_obsolete_energy_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:

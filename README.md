@@ -4,6 +4,16 @@ Intégration personnalisée Home Assistant pour piloter et surveiller une pompe 
 
 > Version actuelle : **1.5.7**
 
+
+## Aperçu de la carte Lovelace
+
+![Aperçu du synoptique Atlantic Alféa dans Home Assistant : unité extérieure, module PAC, circuits RDC et Étage, ECS, alarmes et diagnostics](docs/images/pac-synoptique-apercu.svg)
+
+*Illustration de l'interface avec des valeurs fictives, pour présenter l'organisation des informations. La carte réelle utilise les capteurs de votre installation.*
+
+Le synoptique est **en lecture seule** : il présente les états du compresseur, de la PAC, des circuits de chauffage/rafraîchissement et de l'ECS, avec alarmes et diagnostics repliables. Son éditeur Lovelace permet de choisir une apparence **Automatique / Claire / Sombre** selon le thème Home Assistant.
+
+
 ## Matériel de référence
 
 Cette intégration a été développée et testée sur une **Atlantic Alféa Extensa Duo** équipée d'un régulateur / carte **RVS21.831F** (**famille 211, variante 127**).

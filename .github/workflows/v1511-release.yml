@@ -1,0 +1,47 @@
+name: Atlantic Alféa — publication V1.5.11
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release-v1511:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Vérifier version exacte avant publication
+        id: version
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          actual=json.loads(Path("custom_components/atlantic_alfea_controller/manifest.json").read_text())["version"]
+          if actual != "1.5.11":
+              raise SystemExit(f"Publication annulée : manifest={actual} (attendu 1.5.11)")
+          PY
+      - name: Validation Python et régressions
+        run: |
+          python -m compileall -q custom_components/atlantic_alfea_controller tests
+          python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Validation carte Lovelace
+        run: |
+          node --check custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js
+          node tests/test_card_theme.js
+          node tests/test_card_visual_editor.js
+      - name: Publier le tag et la release HACS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view V1.5.11 >/dev/null 2>&1; then
+            echo "La release V1.5.11 existe déjà, aucune duplication"
+            exit 0
+          fi
+          gh release create V1.5.11 --target "$GITHUB_SHA" \
+            --title "Atlantic Alféa BSB-LAN V1.5.11" \
+            --notes-file docs/RELEASE_NOTES_V1511.md \
+            --latest

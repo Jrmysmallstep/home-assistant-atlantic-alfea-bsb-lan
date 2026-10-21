@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.5.0 (intégration V1.5.7) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.5.1 (intégration V1.5.10) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.7
+ * Inclus dans atlantic_alfea_controller 1.5.10
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -27,6 +27,8 @@ const FIELDS = {
   circuit2:        ['climate','C2 - Circuit 2'],
   circuit1State:   ['sensor','C1 - État actuel'],
   circuit2State:   ['sensor','C2 - État actuel'],
+  pump1:           ['binary_sensor','C1 - Circulateur'],
+  pump2:           ['binary_sensor','C2 - Circulateur'],
   program1:        ['sensor','C1 - Programme actif'],
   program2:        ['sensor','C2 - Programme actif'],
   regime1:         ['sensor','C1 - Régime temporaire'],
@@ -277,7 +279,7 @@ class PacSynoptiqueCard extends HTMLElement {
       number:i, key, mode, action, active, off, isHeating, isCooling, actionText,
       current:st?.attributes?.current_temperature,target:st?.attributes?.temperature,
       regime:st?.attributes?.regime_consigne, native:this._v(`circuit${i}State`),
-      program:this._v(`program${i}`),
+      program:this._v(`program${i}`), pump:this._b(`pump${i}`),
       override:this._b(`override${i}`),
       targetFlow:this._v(`heatFlowTarget${i}`)
     };
@@ -301,7 +303,7 @@ class PacSynoptiqueCard extends HTMLElement {
   _detailRow(label,key,unit='',decimals=1){
     const st=this._s(key);
     const raw=this._v(key);
-    const value=unit ? formatted(raw,unit,decimals) : (key.startsWith('alarm') || ['compressor','defrost','ecsPump','ecsElectric','override1','override2'].includes(key)) ? (raw==='on'?'Actif':raw==='off'?'Inactif':clean(raw)) : clean(raw);
+    const value=unit ? formatted(raw,unit,decimals) : (key.startsWith('alarm') || ['compressor','defrost','ecsPump','ecsElectric','override1','override2','pump1','pump2'].includes(key)) ? (raw==='on'?(['pump1','pump2'].includes(key)?'En marche':'Actif'):raw==='off'?(['pump1','pump2'].includes(key)?'Arrêté':'Inactif'):clean(raw)) : clean(raw);
     return `<div class="detail-row"><span>${html(label)}</span><strong class="${!st||raw==null?'na':''}">${html(value)}</strong></div>`;
   }
   _diagGroup(title,body){return `<section class="diag-group"><h4>${html(title)}</h4>${body}</section>`;}
@@ -361,7 +363,7 @@ class PacSynoptiqueCard extends HTMLElement {
         <span class="state-dot ${branchTone(c)}"></span></div>
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
-      <div class="out-foot">${chip(programmedRegime(c.program)?`Régime : ${programmedRegime(c.program)}`:(c.regime?`Régime : ${clean(c.regime,22)}`:'Régime non disponible'),'dim')}
+      <div class="out-foot">${chip(c.pump===true?'Circulateur en marche':c.pump===false?'Circulateur arrêté':'Circulateur indisponible',c.pump===true?'active':'dim')}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;
     const alarmsClass=alertActive.length?'alerted':'quiet';
@@ -383,7 +385,7 @@ class PacSynoptiqueCard extends HTMLElement {
     ].map(([name,key,unit])=>this._detailRow(name,key,unit,unit==='kWh'?0:1)).join(''));
     const diagCircs=this._diagGroup('Circuits 1 & 2 / programmation',[
       ...[1,2].flatMap(i=>[
-        [`C${i} — État actuel`,`circuit${i}State`,''],[`C${i} — Programme actif`,`program${i}`,''],
+        [`C${i} — État actuel`,`circuit${i}State`,''],[`C${i} — Circulateur`,`pump${i}`,''],[`C${i} — Programme actif`,`program${i}`,''],
         [`C${i} — Régime temporaire`,`regime${i}`,''],[`C${i} — Dérogation`,`override${i}`,''],
         [`C${i} — État chauffage`,`heatState${i}`,''],[`C${i} — État rafraîchissement`,`coolState${i}`,''],
         [`C${i} — Départ cible chauffage (non mesuré)`,`heatFlowTarget${i}`,'°C'],

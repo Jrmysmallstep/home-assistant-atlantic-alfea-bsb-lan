@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.10 — Circulateurs affichés sur le synoptique
+
+- Ajoute les circulateurs C1 et C2 au synoptique (découverte des capteurs binaires existants).
+- Affiche « Circulateur en marche / arrêté / indisponible » sur chaque bloc Circuit plutôt que « Régime : indéterminé ».
+- Ajoute deux lignes « Circulateur » aux diagnostics Circuits 1 et 2.
+- Conserve les capteurs « État actuel » basés sur Climate et les régimes BSB dans leurs attributs.
+- Aucun changement des commandes PAC, programmations et dérogations.
+
+
 ## 1.5.9 — États des circuits et circulateurs
 
 - Les capteurs C1 et C2 « État actuel » affichent Chauffage, Refroidissement, En attente ou Arrêt d'après l'action Climate, plutôt que le régime BSB brut.

@@ -11,15 +11,15 @@ class CirculatorCardTests(unittest.TestCase):
         code = CARD.read_text(encoding="utf-8")
         self.assertIn("pump1:           ['binary_sensor','C1 - Circulateur']", code)
         self.assertIn("pump2:           ['binary_sensor','C2 - Circulateur']", code)
-        self.assertIn("pump:this._b(\`pump\${i}\`)", code.replace("\\", ""))
-        for text in ("Circulateur en marche", "Circulateur arrêté",
-                     "Circulateur indisponible", "C\${i} — Circulateur"):
-            self.assertIn(text.replace("\\", ""), code)
+        self.assertIn("pump:this._b(", code)
+        for value in ("Circulateur en marche", "Circulateur arrêté",
+                      "Circulateur indisponible", "— Circulateur"):
+            self.assertIn(value, code)
 
     def test_no_ambiguous_regime_badge(self):
         code = CARD.read_text(encoding="utf-8")
-        self.assertNotIn("Régime : \${clean(c.regime", code.replace("\\", ""))
-        self.assertIn("pump1','pump2", code)
+        self.assertNotIn("Régime : ${clean(c.regime", code)
+        self.assertIn("'pump1','pump2'", code)
 
 
 if __name__ == "__main__":

@@ -147,6 +147,30 @@ class AlfeaCircuitClimate(ClimateEntity):
             return _PROFILE_COMFORT
         return None
 
+    def _scheduled_profile(self) -> str | None:
+        """Read only the native programme currently applied (C1=10112/C2=10122).
+
+        1 = Allure Réduit (Éco); 2 = Allure Confort on the validated RVS21.831F.
+        This is intentionally NOT used by _active_profile() for write safety.
+        Missing/ambiguous diagnostics do not imply Éco.
+        """
+        parameter = 10112 if self._circuit == 1 else 10122
+        raw = state_value(
+            self.hass,
+            self._source(f"program_diagnostic_{parameter}", parameter),
+        )
+        code, _text = split_bsb_status(raw)
+        if code == 1:
+            return _PROFILE_REDUCED
+        if code == 2:
+            return _PROFILE_COMFORT
+        if code is None:
+            if status_uses_reduced_setpoint(raw):
+                return _PROFILE_REDUCED
+            if status_uses_comfort_setpoint(raw):
+                return _PROFILE_COMFORT
+        return None
+
     def _setpoint(self, mode: str, profile: str) -> tuple[str | None, int]:
         key, parameter = _PARAM[self._circuit]["setpoints"][mode][profile]
         return self._source(key, parameter), parameter
@@ -331,6 +355,8 @@ class AlfeaCircuitClimate(ClimateEntity):
 
         status = self._circuit_status(mode)
         profile = self._active_profile(mode)
+        scheduled_profile = self._scheduled_profile()
+        display_profile = scheduled_profile or profile
         comfort_source, comfort_parameter = self._setpoint(mode, _PROFILE_COMFORT)
         reduced_source, reduced_parameter = self._setpoint(mode, _PROFILE_REDUCED)
 
@@ -358,12 +384,20 @@ class AlfeaCircuitClimate(ClimateEntity):
             ),
             "duree_derogation_ha": self._preferred_override_duration_or_none(),
             "parametre_duree_derogation": _PARAM[self._circuit]["override_duration"][1],
+            # Only the display uses 10112/10122.  All writable setpoint
+            # selection still uses _active_profile(), without any change.
             "regime_consigne": (
                 "réduit"
-                if profile == _PROFILE_REDUCED
+                if display_profile == _PROFILE_REDUCED
                 else "confort"
-                if profile == _PROFILE_COMFORT
+                if display_profile == _PROFILE_COMFORT
                 else "indéterminé"
+            ),
+            "regime_consigne_source": (
+                "programme_horaire_10112_10122"
+                if scheduled_profile is not None
+                else "etat_circuit_bsb" if profile is not None
+                else "inconnue"
             ),
             "ecriture_consigne_autorisee": profile is not None,
             "parametre_consigne_actif": active_parameter,

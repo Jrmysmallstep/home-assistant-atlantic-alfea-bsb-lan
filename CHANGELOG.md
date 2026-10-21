@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.5 — Carte synoptique et programme Confort/Éco
+
+- Carte Lovelace `pac-synoptique-card` V2.3.3 incluse directement dans l'intégration/HACS.
+- Endpoint HTTP local `/alfea-synoptique/pac-synoptique-card.js` sans copier dans `/config/www`.
+- Mise en page horizontale à angles droits ; zone PAC compacte, trois sorties RDC/Étage/ECS.
+- Bloc haut supprimé ; mode Chauffage/Refroidissement dans le bloc PAC.
+- Alarmes et diagnostics repliables indépendamment ; mentions en pied retirées.
+- Animation des serpentins et du ventilateur indicative, uniquement liée aux états.
+- Lecture Confort/Éco prioritaire via les programmes natifs 10112/10122 :
+  `1 = Réduit/Éco`, `2 = Confort`.
+- Distinction entre programme et état de régulation (ex. code 122 : limitation ambiante).
+- Aucun changement dans les sélecteurs de consignes, programmations internes, modes ou dérogations PAC.
+- Tests hors ligne Python et contrôles de syntaxe JavaScript lors des PR.
+
+
 ## 1.3.3
 
 Correctif graphique HACS / Home Assistant.

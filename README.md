@@ -2,7 +2,7 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Version actuelle : **1.5.0**
+> Version actuelle : **1.5.5**
 
 ## Matériel de référence
 
@@ -28,6 +28,55 @@ D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens 
 - Diagnostics : cycles courts, redémarrages rapprochés, démarrages fréquents et écart départ/consigne.
 - Lecture de l'horloge PAC, détection d'une désynchronisation et bouton de synchronisation avec Home Assistant.
 - Détection automatique des entités BSB-LAN avec possibilité de corriger l'association manuellement.
+
+## Carte Lovelace synoptique incluse (V1.5.5)
+
+La carte **PAC Synoptique** est incluse dans l'intégration et installée par HACS, dans
+`custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
+Elle est **strictement en lecture seule** (COMP, PAC, chauffage RDC/Étage,
+ECS, alarmes repliables, diagnostics et animations liées aux états).
+
+Après la mise à jour via HACS, **redémarrez Home Assistant**, puis dans
+**Paramètres → Tableaux de bord → Ressources**, ajoutez **une seule fois** la
+ressource de type **Module JavaScript** :
+
+```text
+/alfea-synoptique/pac-synoptique-card.js?v=1.5.5
+```
+
+Dans le YAML d'une carte manuelle :
+
+```yaml
+type: custom:pac-synoptique-card
+title: Atlantic Alféa Extensa Duo
+show_diagnostics: true
+grid_options:
+  columns: full
+  rows: auto
+```
+
+**Migration depuis la carte installée manuellement :** supprimez l'ancienne
+ressource `/local/pac-synoptique-card.js?v=...` afin de ne pas charger
+deux versions de `pac-synoptique-card`. La configuration YAML ne change pas.
+
+La carte ne contient aucun appel de service Home Assistant et **ne commande pas
+la PAC**. Les couleurs/animations restent indicatives : pas de débitmètre,
+pas de pression frigorifique ni de puissance instantanée inventés.
+Voir [la documentation synoptique](docs/SYNOPTIQUE_V155.md).
+
+## Régime Confort / Éco (affichage uniquement)
+
+Les diagnostics BSB-LAN natifs `10112` (C1) et `10122` (C2) sont
+utilisés en priorité pour afficher le programme appliqué :
+**1 = Allure Réduit / Éco**, **2 = Allure Confort**.
+En leur absence, le libellé de l'état BSB est consulté puis
+`indéterminé` est conservé si les données ne suffisent pas.
+L'état de régulation (`8000/8001`) et le régime horaire sont deux
+informations distinctes : `122 - Limitation de la température ambiante`
+ne veut **pas** dire Éco en soi.
+
+**Sécurité :** cette nouvelle lecture sert exclusivement à l'affichage.
+Les méthodes de choix de consigne et les dérogations natives existantes restent inchangées.
 
 ## Dérogation native
 

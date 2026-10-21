@@ -16,7 +16,7 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from .clock import clock_offset_seconds, clock_source_ids, clock_source_is_fresh
 from .const import CLOCK_DESYNC_THRESHOLD_SECONDS, DOMAIN
-from .helpers import split_bsb_status, state_is_on, state_value, track_entities
+from .helpers import source_entity, split_bsb_status, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
 
 
@@ -26,6 +26,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     entities: list[BinarySensorEntity] = []
+    entities.extend(AlfeaCircuitPumpBinarySensor(hass, entry, circuit) for circuit in (1, 2))
     if entry.data.get("override_c1"):
         entities.append(AlfeaOverrideBinarySensor(hass, entry, 1, "override_c1"))
     if entry.data.get("override_c2"):
@@ -85,6 +86,37 @@ async def async_setup_entry(
     if all(clock_source_ids(hass, entry)):
         entities.append(AlfeaClockDesyncBinarySensor(hass, entry))
     async_add_entities(entities)
+
+
+class AlfeaCircuitPumpBinarySensor(BinarySensorEntity):
+    """Physical circuit circulation from validated read-only BSB outputs."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.RUNNING
+    _attr_icon = "mdi:pump"
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, circuit: int) -> None:
+        self.hass = hass
+        self._entry = entry
+        self._circuit = circuit
+        self._parameter = 9031 if circuit == 1 else 8760
+        self._attr_name = f"C{circuit} - Circulateur"
+        self._attr_unique_id = f"{entry.entry_id}_circuit_pump_c{circuit}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _source(self) -> str | None:
+        return source_entity(self.hass, self._entry, f"circuit_pump_c{self._circuit}", self._parameter)
+
+    @property
+    def is_on(self) -> bool | None:
+        return state_is_on(self.hass, self._source())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int | str]:
+        return {"parametre_bsb": self._parameter, "source": "QX1" if self._circuit == 1 else "Pompe CC2"}
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(track_entities(self.hass, [self._source()], self.async_write_ha_state))
 
 
 class AlfeaOverrideBinarySensor(BinarySensorEntity):

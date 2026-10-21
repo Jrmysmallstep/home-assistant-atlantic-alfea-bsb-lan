@@ -2,7 +2,7 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Version actuelle : **1.5.6**
+> Version actuelle : **1.5.7**
 
 ## Matériel de référence
 
@@ -29,7 +29,7 @@ D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens 
 - Lecture de l'horloge PAC, détection d'une désynchronisation et bouton de synchronisation avec Home Assistant.
 - Détection automatique des entités BSB-LAN avec possibilité de corriger l'association manuellement.
 
-## Carte Lovelace synoptique incluse (V1.5.6)
+## Carte Lovelace synoptique incluse (V1.5.7)
 
 La carte **PAC Synoptique** est incluse dans l'intégration et installée par HACS, dans
 `custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
@@ -41,8 +41,26 @@ Après la mise à jour via HACS, **redémarrez Home Assistant**, puis dans
 ressource de type **Module JavaScript** :
 
 ```text
-/alfea-synoptique/pac-synoptique-card.js?v=1.5.6
+/alfea-synoptique/pac-synoptique-card.js?v=1.5.7
 ```
+
+### Éditeur visuel (nouveau en V1.5.7)
+
+Une fois le module JavaScript chargé, la carte **PAC Synoptique** apparaît dans
+le sélecteur de cartes Lovelace. Dans **Modifier la carte**, l'onglet éditeur
+visuel propose :
+
+- **Apparence** : Automatique (thème Home Assistant), Clair, Sombre.
+- **Afficher les diagnostics complémentaires** : oui/non.
+
+Les réglages sont enregistrés comme configuration normale du dashboard,
+sans éditer le YAML. Le synoptique n'ajoute aucune commande PAC. Les alarmes
+et leur nombre restent visibles et repliables quelle que soit l'option.
+
+L'onglet **Disposition** standard de Home Assistant permet d'adapter la
+largeur de la carte ; le rendu horizontal reste responsive.
+
+### Configuration YAML facultative
 
 Dans le YAML d'une carte manuelle :
 

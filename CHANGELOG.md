@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.11 — Retours BSB natifs et synoptique adaptatif
+
+- Restaure les états natifs BSB-LAN des circuits 1/2 (chauffage 8000/8001 ; refroidissement 8004/8025) sans interprétation Climate, et conserve leurs identifiants Home Assistant.
+- Le synoptique affiche les valeurs « État actuel » directement dans la pastille de chacun des deux circuits.
+- Affiche les circulateurs C1/C2 dans Diagnostics et dans une section dédiée aux capteurs complémentaires.
+- Favorise le synoptique horizontal compact selon la largeur de la carte ; disposition verticale avec connexions COMP → PAC → C1/C2/ECS visibles et animées si nécessaire.
+- Aucune modification des commandes PAC ou des programmations et dérogations natives.
+
+
 ## 1.5.10 — Circulateurs affichés sur le synoptique
 
 - Ajoute les circulateurs C1 et C2 au synoptique (découverte des capteurs binaires existants).

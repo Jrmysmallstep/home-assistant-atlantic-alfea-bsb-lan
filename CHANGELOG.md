@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.6 — Compatibilité thèmes Home Assistant
+
+- Synoptique V2.4.0 : nouveau paramètre YAML `theme_mode: auto | light | dark`.
+- Par défaut, fond, panneaux, contrastes, textes et bordures suivent les variables CSS du thème Home Assistant.
+- Deux modes forcés : clair ou sombre, indépendamment de l'apparence de Home Assistant.
+- Mise à jour du visuel lors du changement de thème sans modification d'entités.
+- Géométrie d'origine, animations, Confort/Éco, alarmes et diagnostics inchangés.
+- Aucun changement des commandes PAC, programmations et dérogations.
+
+
 ## 1.5.5 — Carte synoptique et programme Confort/Éco
 
 - Carte Lovelace `pac-synoptique-card` V2.3.3 incluse directement dans l'intégration/HACS.

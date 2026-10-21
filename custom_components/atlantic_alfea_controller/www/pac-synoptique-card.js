@@ -1,5 +1,5 @@
 /**
- * PAC Synoptique v2.3.3 (intégration V1.5.5) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.4.0 (intégration V1.5.6) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
  * Inclus dans atlantic_alfea_controller 1.5.5
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
@@ -175,12 +175,17 @@ class PacSynoptiqueCard extends HTMLElement {
     this._ids=null;
     this._lastSignature='';
     this._lastDiscovery=0;
+    this._resolvedThemeMode=null;
+    this._lastThemeName=null;
   }
-  static getStubConfig() {return {type:`custom:${TAG}`,title:'Atlantic Alféa Extensa Duo',show_diagnostics:true};}
+  static getStubConfig() {return {type:`custom:${TAG}`,title:'Atlantic Alféa Extensa Duo',show_diagnostics:true,theme_mode:'auto'};}
   setConfig(config) {
     if(!config || typeof config!=='object') throw new Error('Configuration de la carte absente');
     if(config.entities && (typeof config.entities!=='object' || Array.isArray(config.entities))) throw new Error('entities doit être un objet de correspondance');
-    this._config={title:'Atlantic Alféa Extensa Duo',show_diagnostics:true,...config};
+    if(config.theme_mode != null && !['auto','light','dark'].includes(config.theme_mode)) {
+      throw new Error('theme_mode doit être auto, light ou dark');
+    }
+    this._config={title:'Atlantic Alféa Extensa Duo',show_diagnostics:true,theme_mode:'auto',...config};
     this._ids=null;
     this._lastSignature='';
     if(this._hass) this.hass=this._hass;
@@ -190,6 +195,17 @@ class PacSynoptiqueCard extends HTMLElement {
   set hass(hass) {
     this._hass=hass;
     if(!this._config) return;
+    // La palette suit automatiquement le thème HA, même sans changement des capteurs.
+    const selected = this._config.theme_mode || 'auto';
+    const actual = typeof hass.themes?.darkMode === 'boolean'
+      ? (hass.themes.darkMode ? 'dark' : 'light')
+      : (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const rendered = selected === 'auto' ? actual : selected;
+    const changed = this._resolvedThemeMode !== rendered || this._lastThemeName !== hass.themes?.theme;
+    this._resolvedThemeMode = rendered;
+    this._lastThemeName = hass.themes?.theme;
+    this.dataset.pacTheme = selected === 'auto' ? 'auto' : selected;
+    this.dataset.pacScheme = rendered;
     // Recensement des entités au démarrage et toutes les 30 s pour prendre en compte les capteurs activés.
     if(!this._ids || Date.now()-this._lastDiscovery>30000) {
       this._ids=this._discover();this._lastDiscovery=Date.now();
@@ -200,7 +216,7 @@ class PacSynoptiqueCard extends HTMLElement {
         st?.attributes?.temperature,st?.attributes?.production,st?.attributes?.regime_consigne,
         st?.attributes?.phase_apprentissage,st?.attributes?.pompe_ecs,st?.attributes?.appoint_electrique];
     }));
-    if(signature!==this._lastSignature){this._lastSignature=signature;this._render();}
+    if(changed||signature!==this._lastSignature){this._lastSignature=signature;this._render();}
   }
   _discover(){
     const states=this._hass?.states||{};
@@ -379,9 +395,48 @@ class PacSynoptiqueCard extends HTMLElement {
       ['Consigne Éco','ecsEco','°C'],['Pompe ECS','ecsPump',''],['Appoint électrique','ecsElectric','']
     ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
     this.shadowRoot.innerHTML=`<style>
-      :host {display:block;color-scheme:dark;--bg:#121b26;--surface:#1a2837;--surface2:#172331;--line:#314355;
-        --text:#ecf2f8;--sub:#9fb3c6;--blue:#56beff;--red:#ff9c70;--green:#57d7ae;--amber:#ffc16b}
-      ha-card {display:block;container-type:inline-size;overflow:hidden;background:var(--bg);border:1px solid var(--line);border-radius:22px;
+      /* En auto, les palettes proviennent des variables du thème Home Assistant. */
+      :host {display:block;
+        --bg:var(--ha-card-background, var(--card-background-color, #fff));
+        --text:var(--primary-text-color, #212c38);--sub:var(--secondary-text-color,#63768b);
+        --line:var(--divider-color,#bac9d4);
+        --surface:color-mix(in srgb,var(--bg) 91%,var(--text) 9%);
+        --surface2:color-mix(in srgb,var(--bg) 95%,var(--text) 5%);
+        --panel-line:color-mix(in srgb,var(--line) 75%,var(--text) 25%);
+        --soft:color-mix(in srgb,var(--bg) 86%,var(--text) 14%);
+        --soft2:color-mix(in srgb,var(--bg) 80%,var(--text) 20%);
+        --chip-bg:color-mix(in srgb,var(--bg) 82%,var(--text) 18%);
+        --chip-fg:var(--text);--blue:#087db8;--red:#d86542;--green:#07886c;--amber:#ae650d;
+        --chip-heat-bg:#fff1e9;--chip-heat-fg:#aa4b1e;--chip-heat-line:#d6a187;
+        --chip-cool-bg:#e5f3fb;--chip-cool-fg:#12648b;--chip-cool-line:#7db4d1;
+        --chip-warn-bg:#fff3df;--chip-warn-fg:#925e15;--chip-warn-line:#ddb477;
+        --chip-good-bg:#e3f5ef;--chip-good-fg:#11684f;--chip-good-line:#81b9a8;
+        --warn-panel:#fff2e8;--warn-text:#99431e;--warn-line:#d99872;
+        --clear-text:#0b7a5e;--muted:#8ca0b3;
+        --fan-bg:#dae6ee;--fan-edge:#91aab9;--fan-inset:#dae6ee;--fan-stroke:#769ab3;
+        --pipe:#9eb0be;--icon:#437495;--tank-shadow:#64758a;--summary-chevron:#477e9c}
+      :host([data-pac-scheme="dark"]){color-scheme:dark}
+      :host([data-pac-scheme="light"]){color-scheme:light}
+      /* Option dark : palette d'origine, sans altérer la disposition graphique. */
+      :host([data-pac-theme="dark"]){color-scheme:dark;
+        --bg:#121b26;--surface:#1a2837;--surface2:#172331;--line:#314355;
+        --text:#ecf2f8;--sub:#9fb3c6;--panel-line:#31495d;--soft:#243646;
+        --soft2:#314256;--chip-bg:#27384a;--chip-fg:#bfd0dc;
+        --blue:#56beff;--red:#ff9c70;--green:#57d7ae;--amber:#ffc16b;
+        --chip-heat-bg:#3a2a29;--chip-heat-fg:#ffb692;--chip-heat-line:#9b5940;
+        --chip-cool-bg:#1d374b;--chip-cool-fg:#8bd7ff;--chip-cool-line:#2d7296;
+        --chip-warn-bg:#3b3023;--chip-warn-fg:#ffd2a3;--chip-warn-line:#94703e;
+        --chip-good-bg:#1e3835;--chip-good-fg:#a6efdb;--chip-good-line:#366f62;
+        --warn-panel:#382924;--warn-text:#ffd8b8;--warn-line:#bd794f;--clear-text:#a1e4cf;
+        --muted:#71899b;--fan-bg:#243646;--fan-edge:#6d8699;
+        --fan-inset:#243646;--fan-stroke:#79b8d6;--pipe:#3b4d5c;
+        --icon:#a2c4dc;--tank-shadow:#192737;--summary-chevron:#8bb8d0}
+      /* Option light : palette claire, même si l'interface HA est sombre. */
+      :host([data-pac-theme="light"]){color-scheme:light;
+        --bg:#fff;--text:#213448;--sub:#627588;--line:#cfdae4;--surface:#f3f7fa;
+        --surface2:#f9fbfd;--panel-line:#bdd0de;--soft:#e2ecf3;--soft2:#d2e2ed;
+        --chip-bg:#e7eef5;--chip-fg:#365168}
+      ha-card {display:block;container-type:inline-size;overflow:hidden;background:var(--bg);border:1px solid var(--line);border-radius:var(--ha-card-border-radius,22px);
         color:var(--text);font-family:var(--primary-font-family,Roboto,Arial,sans-serif)}
       *{box-sizing:border-box} .wrap{padding:22px 22px 18px}
       .header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;padding-bottom:17px;
@@ -390,12 +445,12 @@ class PacSynoptiqueCard extends HTMLElement {
       h2{margin:6px 0 2px;font-size:clamp(19px,2vw,27px);font-weight:730;letter-spacing:-.35px}
       .sub{color:var(--sub);font-size:12px;line-height:1.5}
       .header-right{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;max-width:380px}
-      .chip{display:inline-flex;align-items:center;gap:5px;border-radius:99px;background:#27384a;
-        color:#bfd0dc;border:1px solid #365066;padding:4px 9px;font-size:11px;font-weight:600;line-height:1.3}
-      .chip.heat{color:#ffb692;border-color:#9b5940;background:#3a2a29}
-      .chip.cool{color:#8bd7ff;border-color:#2d7296;background:#1d374b}
-      .chip.warning{color:#ffd2a3;border-color:#94703e;background:#3b3023}
-      .chip.positive{color:#a6efdb;border-color:#366f62;background:#1e3835}
+      .chip{display:inline-flex;align-items:center;gap:5px;border-radius:99px;background:var(--chip-bg);
+        color:var(--chip-fg);border:1px solid var(--panel-line);padding:4px 9px;font-size:11px;font-weight:600;line-height:1.3}
+      .chip.heat{color:var(--chip-heat-fg);border-color:var(--chip-heat-line);background:var(--chip-heat-bg)}
+      .chip.cool{color:var(--chip-cool-fg);border-color:var(--chip-cool-line);background:var(--chip-cool-bg)}
+      .chip.warning{color:var(--chip-warn-fg);border-color:var(--chip-warn-line);background:var(--chip-warn-bg)}
+      .chip.positive{color:var(--chip-good-fg);border-color:var(--chip-good-line);background:var(--chip-good-bg)}
       /* V2.3.1 : identité graphique d'origine inchangée. Distribution géométrique calculée
          depuis la grille V2.3.0 (0.80fr / 52px / 1fr / 84px / 1.88fr) :
          le module PAC perd 44px, récupérés par le raccordement droit (84 -> 128px).
@@ -412,24 +467,24 @@ class PacSynoptiqueCard extends HTMLElement {
       .pac{grid-column:3;grid-row:1/4;align-self:stretch}
       .outlink{grid-column:4;grid-row:1/4;align-self:stretch}
       .outs{grid-column:5;grid-row:1/4;display:grid;grid-template-rows:repeat(3,minmax(130px,auto));gap:12px}
-      .machine,.pac,.output-card{background:linear-gradient(165deg,var(--surface),var(--surface2));border-radius:17px;border:1px solid #31495d}
+      .machine,.pac,.output-card{background:linear-gradient(165deg,var(--surface),var(--surface2));border-radius:17px;border:1px solid var(--panel-line)}
       .machine,.pac{padding:18px 16px;display:flex;flex-direction:column;gap:12px;position:relative;overflow:hidden;min-height:435px}
-      .mini-head{text-transform:uppercase;letter-spacing:1.15px;color:#9fb8cc;font-size:11px;font-weight:800}
+      .mini-head{text-transform:uppercase;letter-spacing:1.15px;color:var(--sub);font-size:11px;font-weight:800}
       .machine .machine-art{display:flex;justify-content:center;align-items:center;min-height:138px;flex:1}
-      .fan-shell{width:min(100%,185px);aspect-ratio:1.16/1;background:#243646;border:1px solid #6d8699;border-radius:13px;
-        display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 0 6px #243646}
+      .fan-shell{width:min(100%,185px);aspect-ratio:1.16/1;background:var(--fan-bg);border:1px solid var(--fan-edge);border-radius:13px;
+        display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 0 6px var(--fan-inset)}
       .fan-shell:after{content:'';position:absolute;right:8px;top:10px;bottom:10px;width:8px;border-radius:3px;
         background:repeating-linear-gradient(to bottom,#6f899f 0 3px,transparent 3px 8px)}
-      .fan-svg{width:76%;height:82%;color:#79b8d6;overflow:visible}
+      .fan-svg{width:76%;height:82%;color:var(--fan-stroke);overflow:visible}
       .fan-svg .blades{transform-box:view-box;transform-origin:60px 60px}
       /* Illustration du ventilateur synchronisée à l'état compresseur (8400). */
       .fan-shell.running .blades{animation:spin 5s linear infinite}
-      .fan-shell.running{border-color:#57d7ae;box-shadow:0 0 0 1px #57d7ae, inset 0 0 0 6px #243646}
+      .fan-shell.running{border-color:var(--green);box-shadow:0 0 0 1px var(--green), inset 0 0 0 6px var(--fan-inset)}
       @keyframes spin{to{transform:rotate(360deg)}}
       .big-value{font-variant-numeric:tabular-nums;font-size:clamp(23px,2.8vw,35px);font-weight:760;line-height:1.12}
       .field-title{font-size:11px;color:var(--sub);margin-bottom:6px}
-      .machine-stat{padding-top:11px;border-top:1px solid #344556}
-      .mod-bar{background:#314256;height:7px;border-radius:10px;overflow:hidden;margin:8px 0 0}
+      .machine-stat{padding-top:11px;border-top:1px solid var(--line)}
+      .mod-bar{background:var(--soft2);height:7px;border-radius:10px;overflow:hidden;margin:8px 0 0}
       .mod-bar>i{display:block;height:100%;width:0%;border-radius:inherit;background:linear-gradient(90deg,#61b1d7,#56d6b1)}
       .pac-art{flex:1;min-height:102px;display:flex;align-items:center;gap:12px;margin:4px 0}
       .exchanger{display:flex;justify-content:space-evenly;align-items:center;gap:14px;width:100%}
@@ -446,25 +501,25 @@ class PacSynoptiqueCard extends HTMLElement {
         50%{opacity:1;filter:drop-shadow(0 0 9px currentColor) brightness(1.15)}
       }
       .exch-caption{font-size:10px;color:var(--sub);white-space:nowrap}
-      .pac-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;border-top:1px solid #344556;padding-top:13px}
+      .pac-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;border-top:1px solid var(--line);padding-top:13px}
       .pac-metrics>div span{display:block;color:var(--sub);font-size:11px}.pac-metrics>div strong{display:block;font-size:17px;margin-top:5px;font-variant-numeric:tabular-nums}
       .pac-bottom{margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5}
       .linksvg{width:100%;height:100%;display:block;overflow:visible}
-      .linksvg path.track{stroke:#3b4d5c;stroke-width:9;fill:none;stroke-linejoin:round;stroke-linecap:round}
+      .linksvg path.track{stroke:var(--pipe);stroke-width:9;fill:none;stroke-linejoin:round;stroke-linecap:round}
       .linksvg path.live{stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:13 15;animation:flow 1.15s linear infinite}
       .linksvg path.live.heat{stroke:var(--red)}.linksvg path.live.cool{stroke:var(--blue)}.linksvg path.live.electric{stroke:var(--amber)}
-      .linksvg path.live.active{stroke:#60dcbc}
+      .linksvg path.live.active{stroke:var(--green)}
       @keyframes flow {to{stroke-dashoffset:-28}}
-      .output-card{padding:15px 15px 12px;display:flex;flex-direction:column;justify-content:center;gap:10px;min-height:130px;position:relative;border-left:3px solid #465a70}
+      .output-card{padding:15px 15px 12px;display:flex;flex-direction:column;justify-content:center;gap:10px;min-height:130px;position:relative;border-left:3px solid var(--panel-line)}
       .output-card.heat{border-left-color:var(--red)} .output-card.cool{border-left-color:var(--blue)}
       .output-card.electric{border-left-color:var(--amber)}
       .out-top{display:flex;align-items:center;gap:11px}
-      .out-ico{flex:0 0 36px;width:36px;height:36px;color:#a2c4dc;display:grid;place-items:center}
+      .out-ico{flex:0 0 36px;width:36px;height:36px;color:var(--icon);display:grid;place-items:center}
       .symbol{width:29px;height:29px;display:block}
       .out-head{flex:1;min-width:0}
       .out-title{font-size:14px;font-weight:750}.out-title span{color:var(--sub);font-weight:500}
       .out-status{font-size:11px;color:var(--sub);margin-top:4px}
-      .state-dot{width:9px;height:9px;border-radius:50%;background:#546b7b;flex:0 0 9px}
+      .state-dot{width:9px;height:9px;border-radius:50%;background:var(--pipe);flex:0 0 9px}
       .state-dot.heat{background:var(--red);box-shadow:0 0 12px var(--red)}
       .state-dot.cool{background:var(--blue);box-shadow:0 0 12px var(--blue)}
       .out-values{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
@@ -472,35 +527,35 @@ class PacSynoptiqueCard extends HTMLElement {
       .out-values>div strong{display:block;margin-top:3px;font-size:20px;font-weight:750;font-variant-numeric:tabular-nums}
       .out-foot{display:flex;gap:6px;flex-wrap:wrap}.out-foot .chip{font-size:10px;padding:3px 8px}
       .tank-mini{width:28px;height:39px;border-radius:9px;border:2px solid #88aec5;
-        background:linear-gradient(0deg,#377bc7,#935cbd 48%,#ff8f6a);box-shadow:inset 0 0 6px #192737}
-      .section{border-top:1px solid #334759;padding:18px 2px 10px}
+        background:linear-gradient(0deg,#377bc7,#935cbd 48%,#ff8f6a);box-shadow:inset 0 0 6px var(--tank-shadow)}
+      .section{border-top:1px solid var(--line);padding:18px 2px 10px}
       .section-title{display:flex;justify-content:space-between;gap:15px;align-items:center;margin:0 0 12px}
       .section-title h3{font-size:15px;margin:0;font-weight:700}
-      .alerts{border:1px solid #3b5364;border-radius:14px;background:#1a2a36;padding:13px 15px}
-      .alerts.alerted{border-color:#bd794f;background:#382924}
-      .alert-clear{display:flex;align-items:center;gap:12px;color:#a1e4cf}
+      .alerts{border:1px solid var(--panel-line);border-radius:14px;background:var(--surface);padding:13px 15px}
+      .alerts.alerted{border-color:var(--warn-line);background:var(--warn-panel)}
+      .alert-clear{display:flex;align-items:center;gap:12px;color:var(--clear-text)}
       .alert-clear .symbol{flex:0 0 26px}.alert-clear div{display:flex;flex-direction:column;gap:4px}
       .alert-clear strong{font-size:13px}.alert-clear span{font-size:11px;color:var(--sub)}
-      .alert-stack{display:grid;gap:12px}.alert-line{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:650;color:#ffd8b8}
+      .alert-stack{display:grid;gap:12px}.alert-line{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:650;color:var(--warn-text)}
       .alarm-context{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:5px 15px;padding:7px 0 1px 31px}
       .alarm-fact{font-size:11px;display:flex;justify-content:space-between;gap:8px}.alarm-fact span{color:var(--sub)}.alarm-fact strong{text-align:right;font-weight:650}
       .alert-mark{background:#b75b42;color:white;width:21px;height:21px;border-radius:50%;display:grid;place-items:center}
       .alert-meta{color:var(--sub);font-size:10px;margin-top:9px;line-height:1.6}
-      details{margin-top:15px;border-top:1px solid #334759;padding-top:14px}
+      details{margin-top:15px;border-top:1px solid var(--line);padding-top:14px}
       details.alarm-details{padding:14px 2px 0;margin-top:0}
       .alarm-details>summary .chip{margin-left:auto;white-space:nowrap}
       .alarm-details>.alerts{margin-top:13px}
       .pac-head-status{display:flex;gap:6px;flex-wrap:wrap}
       details>summary{cursor:pointer;list-style:none;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px;user-select:none}
       details>summary::-webkit-details-marker{display:none}
-      details>summary:before{content:'▸';color:#8bb8d0;transition:transform .15s}details[open]>summary:before{transform:rotate(90deg)}
+      details>summary:before{content:'▸';color:var(--summary-chevron);transition:transform .15s}details[open]>summary:before{transform:rotate(90deg)}
       .details-note{color:var(--sub);font-size:11px;margin:11px 0 13px;line-height:1.5}
       .diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-      .diag-group{min-width:0;background:#1a2937;padding:13px;border-radius:12px;border:1px solid #314456}
-      .diag-group h4{margin:0 0 10px;font-size:12px;color:#c4d9ea}
-      .detail-row{border-bottom:1px solid #2c4053;display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
+      .diag-group{min-width:0;background:var(--surface);padding:13px;border-radius:12px;border:1px solid var(--panel-line)}
+      .diag-group h4{margin:0 0 10px;font-size:12px;color:var(--text)}
+      .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
       .detail-row:last-child{border:0}.detail-row span{color:var(--sub);min-width:0}.detail-row strong{text-align:right;font-weight:700;max-width:58%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-      .detail-row strong.na{color:#71899b}
+      .detail-row strong.na{color:var(--muted)}
       @container (max-width:1050px){
         .wrap{padding:17px}
         .schematic{grid-template-columns:minmax(145px,.79fr) 27px minmax(215px,.96fr) 44px minmax(255px,1.58fr)}
@@ -523,13 +578,13 @@ class PacSynoptiqueCard extends HTMLElement {
       <div class="schematic" aria-label="Unité extérieure compresseur, module PAC et trois usages RDC, étage, ECS">
         <section class="machine"><div class="mini-head">Unité extérieure / COMP</div>
           <div class="machine-art"><div class="fan-shell ${fanAnimated?'running':''}" aria-hidden="true"><svg class="fan-svg" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="51" stroke="#476d84" stroke-width="2" fill="#122333"/>
-            <g class="blades" fill="#477c9f" stroke="#83a9bc" stroke-width="1.2">
+            <circle cx="60" cy="60" r="51" stroke="var(--fan-stroke)" stroke-width="2" fill="var(--soft)"/>
+            <g class="blades" fill="var(--fan-stroke)" stroke="var(--panel-line)" stroke-width="1.2">
               <ellipse cx="60" cy="35" rx="14" ry="27"/>
               <ellipse cx="60" cy="35" rx="14" ry="27" transform="rotate(90 60 60)"/>
               <ellipse cx="60" cy="35" rx="14" ry="27" transform="rotate(180 60 60)"/>
               <ellipse cx="60" cy="35" rx="14" ry="27" transform="rotate(270 60 60)"/>
-            </g><circle cx="60" cy="60" r="11" fill="#b2c8d7" stroke="#567993" stroke-width="2"/></svg></div></div>
+            </g><circle cx="60" cy="60" r="11" fill="var(--soft2)" stroke="var(--fan-stroke)" stroke-width="2"/></svg></div></div>
           <div><div class="field-title">Air extérieur</div><div class="big-value">${html(air)}</div></div>
           <div class="machine-stat"><div class="field-title">Compresseur</div><div>${chip(compressorText,compressionTone==='active'?'positive':'dim')}</div></div>
           <div class="machine-stat"><div class="field-title">Modulation du compresseur</div><div class="big-value">${html(formatted(gauge,'%'))}</div>

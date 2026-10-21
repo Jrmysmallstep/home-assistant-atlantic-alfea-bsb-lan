@@ -1,4 +1,4 @@
-# Synoptique Atlantic Alféa — V1.5.5
+# Synoptique Atlantic Alféa — V1.5.6
 
 ## Installation via HACS
 
@@ -6,7 +6,7 @@ Le JavaScript est automatiquement installé dans l'intégration :
 `custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
 
 Home Assistant sert l'asset à l'adresse :
-`/alfea-synoptique/pac-synoptique-card.js?v=1.5.5`.
+`/alfea-synoptique/pac-synoptique-card.js?v=1.5.6`.
 
 Redémarrer Home Assistant après HACS, puis ajouter **une unique ressource**
 **Module JavaScript** dans Paramètres → Tableaux de bord → Ressources.
@@ -22,7 +22,21 @@ show_diagnostics: true
 grid_options:
   columns: full
   rows: auto
+theme_mode: auto
 ```
+
+### Thèmes
+
+Le réglage `theme_mode` accepte `auto` (valeur par défaut), `light` et `dark`.
+
+- **auto** : la carte utilise `--ha-card-background`, `--primary-text-color`,
+  `--secondary-text-color`, `--divider-color` et les autres variables du thème HA ;
+  elle s'adapte au changement clair/sombre du profil.
+- **light** : force un rendu clair.
+- **dark** : force un rendu sombre proche de la carte historique.
+
+La palette des états Chauffage, Rafraîchissement et Alarmes reste lisible
+dans les trois modes. La configuration ne commande jamais la PAC.
 
 Utiliser de préférence une vue Panneau ou une section pleine largeur.
 

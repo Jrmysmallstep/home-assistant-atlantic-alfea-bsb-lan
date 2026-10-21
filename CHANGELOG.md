@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.7 — Éditeur visuel Lovelace
+
+- Éditeur visuel natif de la carte PAC Synoptique (sans extension graphique externe).
+- Liste déroulante Apparence : Automatique / Clair / Sombre (valeur enregistrée `theme_mode`).
+- Case à cocher d'affichage des diagnostics complémentaires (`show_diagnostics`).
+- Mise à jour en temps réel de l'aperçu, événement `config-changed` conforme à Home Assistant.
+- Les réglages antérieurs en YAML et les associations d'entités personnalisées sont conservés.
+- Aucun changement dans le fonctionnement de la PAC, les alarmes, les animations ou les sécurités.
+
+
 ## 1.5.6 — Compatibilité thèmes Home Assistant
 
 - Synoptique V2.4.0 : nouveau paramètre YAML `theme_mode: auto | light | dark`.

@@ -1,4 +1,4 @@
-# Synoptique Atlantic Alféa — V1.5.6
+# Synoptique Atlantic Alféa — V1.5.7
 
 ## Installation via HACS
 
@@ -6,12 +6,33 @@ Le JavaScript est automatiquement installé dans l'intégration :
 `custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
 
 Home Assistant sert l'asset à l'adresse :
-`/alfea-synoptique/pac-synoptique-card.js?v=1.5.6`.
+`/alfea-synoptique/pac-synoptique-card.js?v=1.5.7`.
 
 Redémarrer Home Assistant après HACS, puis ajouter **une unique ressource**
 **Module JavaScript** dans Paramètres → Tableaux de bord → Ressources.
 Supprimer toute ancienne ressource `/local/pac-synoptique-card.js` pour
 éviter que l'ancien code ne s'enregistre avant le nouveau.
+
+## Éditeur visuel Lovelace (V1.5.7)
+
+1. Dans le tableau de bord, cliquer sur le crayon **Modifier**.
+2. Ajouter la carte **PAC Synoptique — Atlantic Alféa (lecture seule)**,
+   ou ouvrir la configuration de la carte existante.
+3. L'**éditeur visuel** s'affiche automatiquement (le YAML reste disponible
+   via le bouton d'édition de code de Home Assistant).
+4. Dans **Apparence du synoptique**, choisir :
+   - **Automatique (thème Home Assistant)** — valeur `auto`, défaut ;
+   - **Clair** — valeur `light` ;
+   - **Sombre** — valeur `dark`.
+5. Cocher/décocher **Afficher les diagnostics complémentaires**.
+6. Enregistrer. L'aperçu se met à jour avant l'enregistrement.
+
+La sélection et la case sont les **seuls réglages du composant**, toutes les
+commandes PAC sont volontairement absentes. Pour la largeur, utiliser l'onglet
+**Disposition** de Home Assistant.
+
+Les anciennes cartes configurées en YAML conservent leurs propriétés. Les
+`entities` personnalisées éventuelles ne sont pas réinitialisées par l'éditeur.
 
 ## Carte YAML
 

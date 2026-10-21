@@ -1,12 +1,13 @@
 /**
- * PAC Synoptique v2.4.0 (intégration V1.5.6) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.5.0 (intégration V1.5.7) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.5
+ * Inclus dans atlantic_alfea_controller 1.5.7
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
 'use strict';
 const TAG = 'pac-synoptique-card';
+const EDITOR_TAG = 'pac-synoptique-card-editor';
 
 // Noms définis par le code de l'intégration et non par une capture Lovelace.
 // Les entités de diagnostic peuvent être absentes ou désactivées dans HA.
@@ -178,7 +179,8 @@ class PacSynoptiqueCard extends HTMLElement {
     this._resolvedThemeMode=null;
     this._lastThemeName=null;
   }
-  static getStubConfig() {return {type:`custom:${TAG}`,title:'Atlantic Alféa Extensa Duo',show_diagnostics:true,theme_mode:'auto'};}
+  static getStubConfig() {return {theme_mode:'auto',show_diagnostics:true};}
+  static getConfigElement() {return document.createElement(EDITOR_TAG);}
   setConfig(config) {
     if(!config || typeof config!=='object') throw new Error('Configuration de la carte absente');
     if(config.entities && (typeof config.entities!=='object' || Array.isArray(config.entities))) throw new Error('entities doit être un objet de correspondance');
@@ -638,6 +640,93 @@ class PacSynoptiqueCard extends HTMLElement {
     </div></ha-card>`;
   }
 }
+/**
+ * Éditeur visuel natif Lovelace. Aucune commande BSB-LAN : cet élément ne
+ * manipule que la configuration locale du rendu du synoptique.
+ */
+class PacSynoptiqueCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({mode:'open'});
+    this.shadowRoot.addEventListener('change', event => {
+      if (!this._config) return;
+      const element=event.target;
+      if (element?.id==='pac-theme-choice') {
+        const theme=element.value;
+        if (['auto','light','dark'].includes(theme)) this._changed('theme_mode',theme);
+      } else if (element?.id==='pac-show-diagnostics') {
+        this._changed('show_diagnostics',Boolean(element.checked));
+      }
+    });
+  }
+  setConfig(config) {
+    if (!config || typeof config !== 'object' || Array.isArray(config)) {
+      throw new Error('Configuration de carte incorrecte');
+    }
+    this._config={...config};
+    this._render();
+  }
+  set hass(hass) {this._hass=hass;}
+  _changed(key,value) {
+    // Conserve les paramètres additionnels/associations d'entités et la
+    // largeur, même s'ils ne sont pas modifiés dans l'éditeur visuel.
+    const config={...this._config,[key]:value};
+    this._config=config;
+    this.dispatchEvent(new CustomEvent('config-changed',{
+      detail:{config},bubbles:true,composed:true
+    }));
+  }
+  _render() {
+    const config=this._config||{};
+    const theme=['auto','light','dark'].includes(config.theme_mode)?config.theme_mode:'auto';
+    const selected=value=>theme===value?' selected':'';
+    const checked=config.show_diagnostics!==false?' checked':'';
+    this.shadowRoot.innerHTML=`
+      <style>
+        :host{display:block;color:var(--primary-text-color,#243443);
+          font-family:var(--primary-font-family,Roboto,Arial,sans-serif);
+          font-size:14px}
+        *{box-sizing:border-box}
+        .editor{display:grid;gap:20px;padding:16px 0 8px}
+        .field{display:grid;gap:9px}
+        label{font-size:14px;font-weight:600;line-height:1.35}
+        select{display:block;min-height:48px;width:100%;font:inherit;
+          color:var(--primary-text-color,#243443);
+          background:var(--card-background-color,var(--ha-card-background,#fff));
+          border:1px solid var(--divider-color,#8da0b0);border-radius:10px;
+          padding:10px 12px;cursor:pointer}
+        select:focus-visible,input:focus-visible{outline:2px solid
+          var(--primary-color,#03a9f4);outline-offset:3px}
+        .toggle{display:flex;align-items:center;gap:12px;cursor:pointer}
+        input[type=checkbox]{width:19px;height:19px;accent-color:var(--primary-color,#03a9f4);
+          flex:none;cursor:pointer}
+        .hint{color:var(--secondary-text-color,#65788b);line-height:1.45;font-size:12px}
+        .notice{border-top:1px solid var(--divider-color,#abb7c0);padding-top:12px}
+      </style>
+      <div class="editor">
+        <div class="field">
+          <label for="pac-theme-choice">Apparence du synoptique</label>
+          <select id="pac-theme-choice" aria-label="Apparence du synoptique">
+            <option value="auto"${selected('auto')}>Automatique (thème Home Assistant)</option>
+            <option value="light"${selected('light')}>Clair</option>
+            <option value="dark"${selected('dark')}>Sombre</option>
+          </select>
+          <div class="hint">Automatique suit le thème actuellement utilisé dans Home Assistant.</div>
+        </div>
+        <div class="field">
+          <label class="toggle" for="pac-show-diagnostics">
+            <input type="checkbox" id="pac-show-diagnostics"${checked}>
+            Afficher les diagnostics complémentaires
+          </label>
+          <div class="hint">Les alarmes et leur compteur restent toujours visibles et repliables.</div>
+        </div>
+        <div class="hint notice">Carte de supervision uniquement · aucune commande envoyée à la PAC.
+          La largeur se règle dans l'onglet Disposition du tableau de bord.</div>
+      </div>`;
+  }
+}
+if(!customElements.get(EDITOR_TAG)) customElements.define(EDITOR_TAG,PacSynoptiqueCardEditor);
+
 if(!customElements.get(TAG)) customElements.define(TAG,PacSynoptiqueCard);
 window.customCards=window.customCards||[];
 if(!window.customCards.some(c=>c.type===TAG)) window.customCards.push({

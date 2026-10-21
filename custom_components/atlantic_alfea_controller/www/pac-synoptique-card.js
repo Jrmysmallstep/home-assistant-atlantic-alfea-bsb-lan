@@ -512,6 +512,7 @@ class PacSynoptiqueCard extends HTMLElement {
       .pac-metrics>div span{display:block;color:var(--sub);font-size:11px}.pac-metrics>div strong{display:block;font-size:17px;margin-top:5px;font-variant-numeric:tabular-nums}
       .pac-bottom{margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5}
       .linksvg{width:100%;height:100%;display:block;overflow:visible}
+      .vertical-link{display:none}
       .linksvg path.track{stroke:var(--pipe);stroke-width:9;fill:none;stroke-linejoin:round;stroke-linecap:round}
       .linksvg path.live{stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:13 15;animation:flow 1.15s linear infinite}
       .linksvg path.live.heat{stroke:var(--red)}.linksvg path.live.cool{stroke:var(--blue)}.linksvg path.live.electric{stroke:var(--amber)}
@@ -586,7 +587,8 @@ class PacSynoptiqueCard extends HTMLElement {
         .machine .machine-stat{padding-top:5px}
         .pac-art{min-height:85px}
         .inlink,.outlink{display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
-        .inlink .linksvg,.outlink .linksvg{height:100%;width:100%;overflow:hidden}
+        .inlink .horizontal-link,.outlink .horizontal-link{display:none}
+        .inlink .vertical-link,.outlink .vertical-link{display:block;height:100%;width:100%;overflow:hidden}
         .outs{display:flex;flex-direction:column;gap:10px;position:relative;padding-left:22px;margin-top:0}
         .outs:before{content:'';position:absolute;left:9px;top:0;bottom:55px;width:7px;border-radius:4px;background:var(--pipe)}
         .output-card{min-height:115px;position:relative;overflow:visible}
@@ -624,8 +626,8 @@ class PacSynoptiqueCard extends HTMLElement {
             <div class="mod-bar"><i style="width:${gauge!==null?Math.max(0,Math.min(100,gauge)):0}%"></i></div></div>
           ${defrost===true?`<div>${chip('Dégivrage actif','cool')}</div>`:''}
         </section>
-        <div class="inlink" aria-hidden="true"><svg class="linksvg" viewBox="0 0 100 440" preserveAspectRatio="none"><path class="track" d="M0 220 H100"/>
-          ${compressor===true?'<path class="live active" d="M0 220 H100"/>':''}</svg></div>
+        <div class="inlink" aria-hidden="true"><svg class="linksvg horizontal-link" viewBox="0 0 100 440" preserveAspectRatio="none"><path class="track" d="M0 220 H100"/>
+          ${compressor===true?'<path class="live active" d="M0 220 H100"/>':''}</svg><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${compressor===true?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
         <section class="pac"><div class="mini-head">PAC · Module hydraulique</div>
           <div class="pac-head-status">${chip(modeText,mode==='heat'?'heat':mode==='cool'?'cool':'dim')}
           ${chip(clean(this._v('pacState')||'État PAC indisponible',36),compressor===true?'positive':'dim')}</div>
@@ -640,11 +642,11 @@ class PacSynoptiqueCard extends HTMLElement {
             <div><span>ΔT départ − retour</span><strong>${html(pacDelta)}</strong></div>
           </div><div class="pac-bottom">Températures communes aux circuits · pas de mesure séparée RDC / étage</div>
         </section>
-        <div class="outlink" aria-hidden="true"><svg class="linksvg" viewBox="0 0 100 440" preserveAspectRatio="none">
+        <div class="outlink" aria-hidden="true"><svg class="linksvg horizontal-link" viewBox="0 0 100 440" preserveAspectRatio="none">
           <path class="track" d="M0 220H33V72H100 M33 220H100 M33 220V368H100"/>
           ${c1.active?`<path class="live ${branchTone(c1)}" d="M0 220H33V72H100"/>`:''}
           ${c2.active?`<path class="live ${branchTone(c2)}" d="M0 220H33H100"/>`:''}
-          ${ecs.viaPac?'<path class="live heat" d="M0 220H33V368H100"/>':''}</svg></div>
+          ${ecs.viaPac?'<path class="live heat" d="M0 220H33V368H100"/>':''}</svg><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${(c1.active||c2.active||ecs.viaPac)?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
         <div class="outs">${circHtml(c1)}${circHtml(c2)}
           <section class="output-card ${ecsTone}" aria-label="Eau chaude sanitaire">
             <div class="out-top"><div class="tank-mini" aria-hidden="true"></div><div class="out-head">

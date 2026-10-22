@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.16 — Afficher les états BSB-LAN sans interprétation
+
+- Annule uniquement la transformation du badge des circuits en « Régime : Confort/Éco ».
+- Affiche à nouveau le libellé d'origine remonté par les capteurs « C1/C2 - État actuel ».
+- 10112/10122 restent disponibles séparément dans les diagnostics.
+- Préserve intégralement la correction des connexions en mode portrait de V1.5.15.
+- Aucune commande PAC, aucune programmation native et aucun attribut Climate modifié.
+
+
 ## 1.5.15 — Portrait et programme Confort / Éco sur le synoptique
 
 - Portrait/Auto : liaisons verticales courtes sans collecteur latéral superposé.

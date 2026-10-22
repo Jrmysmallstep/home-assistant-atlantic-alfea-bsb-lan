@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.8.2 (intégration V1.5.15) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.8.3 (intégration V1.5.16) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.15
+ * Inclus dans atlantic_alfea_controller 1.5.16
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -369,16 +369,8 @@ class PacSynoptiqueCard extends HTMLElement {
     const air=temp(this._v('outdoor'));
     const pacDelta= nvalue(this._v('flow'))!==null && nvalue(this._v('returnTemp'))!==null ?
       `${decimal.format(nvalue(this._v('flow'))-nvalue(this._v('returnTemp')))} °C` : '—';
-    // 10112 / 10122 = programme horaire; l'état BSB brut reste en diagnostics.
-    // L'attribut Climate est un repli uniquement lorsque le programme n'est pas lisible.
-    const visibleRegime = c => {
-      const scheduled = programmedRegime(c.program);
-      if (scheduled) return scheduled;
-      const fromClimate = norm(c.regime);
-      if (fromClimate.includes('confort')) return 'Confort';
-      if (fromClimate.includes('reduit') || fromClimate.includes('eco')) return 'Éco';
-      return null;
-    };
+    // Les pastilles affichent exclusivement l'état BSB natif remonté par l'entité.
+    // Les programmes horaires et attributs interprétés restent dans les diagnostics.
     const circHtml=c => `<section class="output-card ${branchTone(c)} regime-${c.mode==='heat'?'heat':c.mode==='cool'?'cool':'idle'}" aria-label="Circuit ${c.number} ${c.number===1?'RDC':'étage'}">
       <div class="out-top"><div class="out-ico">${icon(c.isCooling || (c.mode==='cool' && !c.isHeating)?'snow':'radiant')}</div>
         <div class="out-head"><div class="out-title">Circuit ${c.number} <span>· ${c.number===1?'RDC':'Étage'}</span></div>
@@ -386,7 +378,7 @@ class PacSynoptiqueCard extends HTMLElement {
         <span class="state-dot ${branchTone(c)}"></span></div>
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
-      <div class="out-foot">${!c.off && visibleRegime(c)?chip('Régime : '+visibleRegime(c),'dim'):''}
+      <div class="out-foot">${chip(c.native??'État BSB-LAN indisponible','dim')}
         ${this._config.show_pump_badges!==false && c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;

@@ -1,9 +1,6 @@
 name: Atlantic Alféa V1.5.14 — correctif liaisons
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch: # Publication V1.5.14 terminée ; ancien workflow archivé
 permissions:
   contents: write
 jobs:

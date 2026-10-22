@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.13 — Synoptique V2.8 compact et responsive
+
+- Nouvelle configuration `layout_orientation: auto | landscape | portrait`, également accessible via l'éditeur visuel.
+- Carte moins haute et blocs plus compacts, sans suppression de champs.
+- Paysage forcé avec défilement horizontal sur écran trop étroit.
+- Portrait optimisé pour smartphone, transitions CSS et liaisons verticales en mode classique.
+- Les modes thème Automatique/Clair/Sombre et les présentations Classique/Épurée restent disponibles.
+- 65 correspondances d'entités conservées, y compris diagnostics, alarmes et circulateurs.
+- Aucune image externe, SVG incorporés dans le JavaScript ; filtres animés remplacés par animation d'opacité.
+- Mouvements arrêtés si l'utilisateur demande des animations réduites.
+- Aucun changement côté régulation, chauffage, rafraîchissement, ECS, programmation ou dérogations.
+
+
 ## 1.5.11 — Retours BSB natifs et synoptique adaptatif
 
 - Restaure les états natifs BSB-LAN des circuits 1/2 (chauffage 8000/8001 ; refroidissement 8004/8025) sans interprétation Climate, et conserve leurs identifiants Home Assistant.

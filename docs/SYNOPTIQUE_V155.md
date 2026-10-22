@@ -6,7 +6,7 @@ Le JavaScript est automatiquement installé dans l'intégration :
 `custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
 
 Home Assistant sert l'asset à l'adresse :
-`/alfea-synoptique/pac-synoptique-card.js?v=1.5.12`.
+`/alfea-synoptique/pac-synoptique-card.js?v=1.5.13`.
 
 Redémarrer Home Assistant après HACS, puis ajouter **une unique ressource**
 **Module JavaScript** dans Paramètres → Tableaux de bord → Ressources.
@@ -34,6 +34,28 @@ commandes PAC sont volontairement absentes. Pour la largeur, utiliser l'onglet
 Les anciennes cartes configurées en YAML conservent leurs propriétés. Les
 `entities` personnalisées éventuelles ne sont pas réinitialisées par l'éditeur.
 
+## Dispositions responsive — V1.5.13
+
+Depuis **Modifier la carte → Orientation**, trois choix sont proposés :
+
+- **Automatique** (`layout_orientation: auto`) : horizontal en largeur suffisante,
+  vertical lorsque la carte se rétrécit. Le critère est la largeur de la carte.
+- **Paysage** (`layout_orientation: landscape`) : toujours horizontal, avec
+  défilement horizontal intégré lorsque l'écran est trop étroit.
+- **Portrait** (`layout_orientation: portrait`) : toujours vertical,
+  adapté à un affichage mobile.
+
+Ces choix s'ajoutent aux présentations Classique / Épurée et aux thèmes
+Automatique / Clair / Sombre. Les réglages existants restent compatibles.
+
+**Performances :** aucun chargement d'image externe ; le ventilateur, les
+échangeurs et les flux sont composés en SVG inline/CSS. Les préférences
+`prefers-reduced-motion` sont respectées. Le composant reste en lecture seule.
+
+**Capteurs :** les 65 correspondances d'entités présentes dans la V1.5.12
+sont intégralement conservées, y compris les capteurs masqués dans les
+diagnostics repliables. Aucun capteur additionnel nécessaire.
+
 ## Carte YAML
 
 ```yaml
@@ -44,6 +66,7 @@ grid_options:
   columns: full
   rows: auto
 theme_mode: auto
+layout_orientation: auto
 layout_style: clean
 show_links: true
 animate_flows: true

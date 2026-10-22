@@ -2,7 +2,7 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Version actuelle : **1.5.12**
+> Version actuelle : **1.5.13**
 
 
 ## Aperçu de la carte Lovelace
@@ -39,7 +39,31 @@ D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens 
 - Lecture de l'horloge PAC, détection d'une désynchronisation et bouton de synchronisation avec Home Assistant.
 - Détection automatique des entités BSB-LAN avec possibilité de corriger l'association manuellement.
 
-## Carte Lovelace synoptique incluse (V1.5.12)
+## Carte Lovelace synoptique incluse (V1.5.13)
+
+### Synoptique V2.8.0 — compact et responsive
+
+La V1.5.13 conserve les **65 correspondances d'entités** du synoptique V2.7.0,
+ainsi que les animations, les alarmes, les diagnostics, les circulateurs et
+les réglages de présentation précédents.
+
+- **Orientation automatique** : disposition horizontale sur écran large et
+  verticale lorsque la carte est étroite, même dans une petite section Lovelace.
+- **Paysage** : maintien d'un synoptique COMP → PAC → RDC / Étage / ECS
+  horizontal. Sur mobile étroit, un défilement horizontal évite les textes écrasés.
+- **Portrait** : disposition verticale optimisée pour les smartphones.
+- **Graphisme compact** : hauteurs et espaces réduits, sans retirer de valeurs.
+- **Fluidité** : animation du ventilateur par transformation CSS, pulsation des
+  échangeurs par opacité, animations de flux conservées et désactivées en
+  cas de préférence d'accessibilité pour moins de mouvements.
+- **Sans images externes** : HTML, CSS et formes SVG incorporées au code,
+  aucune requête d'image pour afficher la carte.
+- **Thèmes** : Automatique / Clair / Sombre, inchangés.
+
+Le nouvel éditeur visuel expose **Orientation de la carte** (Automatique,
+Paysage, Portrait). Les anciens dashboards sans réglage explicite bénéficient
+du mode automatique.
+
 
 Depuis la V1.5.12, l’éditeur visuel propose deux dispositions (Classique / Épurée), les raccordements en disposition horizontale, les animations facultatives et l'affichage des circulateurs. La disposition Épurée masque les raccordements en affichage vertical. Les diagnostics sont allégés sans supprimer les entités Home Assistant.
 
@@ -47,6 +71,7 @@ Depuis la V1.5.12, l’éditeur visuel propose deux dispositions (Classique / É
 type: custom:pac-synoptique-card
 title: Atlantic Alféa Extensa Duo
 theme_mode: auto
+layout_orientation: auto  # auto / landscape / portrait
 layout_style: clean
 show_links: true
 animate_flows: true
@@ -65,7 +90,7 @@ Après la mise à jour via HACS, **redémarrez Home Assistant**, puis dans
 ressource de type **Module JavaScript** :
 
 ```text
-/alfea-synoptique/pac-synoptique-card.js?v=1.5.12
+/alfea-synoptique/pac-synoptique-card.js?v=1.5.13
 ```
 
 ### Éditeur visuel (nouveau en V1.5.7)

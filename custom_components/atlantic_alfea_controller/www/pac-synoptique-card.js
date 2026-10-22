@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.8.1 (intégration V1.5.14) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.8.2 (intégration V1.5.15) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.14
+ * Inclus dans atlantic_alfea_controller 1.5.15
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -369,6 +369,16 @@ class PacSynoptiqueCard extends HTMLElement {
     const air=temp(this._v('outdoor'));
     const pacDelta= nvalue(this._v('flow'))!==null && nvalue(this._v('returnTemp'))!==null ?
       `${decimal.format(nvalue(this._v('flow'))-nvalue(this._v('returnTemp')))} °C` : '—';
+    // 10112 / 10122 = programme horaire; l'état BSB brut reste en diagnostics.
+    // L'attribut Climate est un repli uniquement lorsque le programme n'est pas lisible.
+    const visibleRegime = c => {
+      const scheduled = programmedRegime(c.program);
+      if (scheduled) return scheduled;
+      const fromClimate = norm(c.regime);
+      if (fromClimate.includes('confort')) return 'Confort';
+      if (fromClimate.includes('reduit') || fromClimate.includes('eco')) return 'Éco';
+      return null;
+    };
     const circHtml=c => `<section class="output-card ${branchTone(c)} regime-${c.mode==='heat'?'heat':c.mode==='cool'?'cool':'idle'}" aria-label="Circuit ${c.number} ${c.number===1?'RDC':'étage'}">
       <div class="out-top"><div class="out-ico">${icon(c.isCooling || (c.mode==='cool' && !c.isHeating)?'snow':'radiant')}</div>
         <div class="out-head"><div class="out-title">Circuit ${c.number} <span>· ${c.number===1?'RDC':'Étage'}</span></div>
@@ -376,7 +386,7 @@ class PacSynoptiqueCard extends HTMLElement {
         <span class="state-dot ${branchTone(c)}"></span></div>
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
-      <div class="out-foot">${chip(c.native??'État BSB-LAN indisponible','dim')}
+      <div class="out-foot">${!c.off && visibleRegime(c)?chip('Régime : '+visibleRegime(c),'dim'):''}
         ${this._config.show_pump_badges!==false && c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;
@@ -792,6 +802,33 @@ class PacSynoptiqueCard extends HTMLElement {
       :host([data-animate-flows="false"]) .output-card:after{animation:none!important}
       @media(prefers-reduced-motion:reduce){.output-card:after{animation:none!important}}
       @media(prefers-reduced-motion:reduce){.linksvg path.live,.fan-shell.running .blades,.exchanger.running .exch-col svg{animation:none!important}}
+
+      /* V2.8.2 : portrait mobile sans faux collecteur latéral. Des traits courts
+         relient COMP → PAC → groupe de sorties, sans branches traversantes.
+         Les cartes conservent leur bordure d'état et leur largeur complète. */
+      :host([data-orientation="portrait"]) .outs{
+        padding-left:0!important;gap:10px;margin:0;min-width:0}
+      :host([data-orientation="portrait"]) .outs:before,
+      :host([data-orientation="portrait"]) .output-card:before,
+      :host([data-orientation="portrait"]) .output-card:after{display:none!important;content:none!important}
+      :host([data-orientation="portrait"]) .output-card{
+        width:100%;max-width:100%;box-sizing:border-box;overflow:hidden;min-width:0}
+      :host([data-orientation="portrait"]) .inlink,
+      :host([data-orientation="portrait"]) .outlink{
+        flex-basis:25px;height:25px;min-height:25px}
+      @container (max-width:800px){
+        :host([data-orientation="auto"]) .outs{
+          padding-left:0!important;gap:10px;margin:0;min-width:0}
+        :host([data-orientation="auto"]) .outs:before,
+        :host([data-orientation="auto"]) .output-card:before,
+        :host([data-orientation="auto"]) .output-card:after{
+          display:none!important;content:none!important}
+        :host([data-orientation="auto"]) .output-card{
+          width:100%;max-width:100%;box-sizing:border-box;overflow:hidden;min-width:0}
+        :host([data-orientation="auto"]) .inlink,
+        :host([data-orientation="auto"]) .outlink{
+          flex-basis:25px;height:25px;min-height:25px}
+      }
     </style>
     <ha-card><div class="wrap">
       <!-- Bandeau supprimé ; mode saisonnier présenté dans le module PAC. -->

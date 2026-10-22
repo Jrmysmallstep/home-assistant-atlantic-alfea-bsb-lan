@@ -1,0 +1,52 @@
+name: Atlantic Alféa V1.5.15 — mobile synoptique
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Tests Python existants
+        run: |
+          python -m compileall -q custom_components/atlantic_alfea_controller tests
+          python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Vérifications JavaScript et régression
+        run: |
+          node --check custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js
+          node tests/test_card_compact_orientation.js
+          node tests/test_card_pipe_geometry.js
+          node tests/test_card_theme.js
+          node tests/test_card_visual_editor.js
+          node tests/test_card_portrait_regime_v1515.js
+      - name: Vérifier version
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          m=json.loads(Path("custom_components/atlantic_alfea_controller/manifest.json").read_text())
+          assert m["version"]=="1.5.15"
+          PY
+  release:
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publier V1.5.15 si absente
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view V1.5.15 >/dev/null 2>&1; then exit 0; fi
+          gh release create V1.5.15 \
+            --target "$GITHUB_SHA" \
+            --title "Atlantic Alféa BSB-LAN V1.5.15" \
+            --notes-file docs/RELEASE_NOTES_V1515.md \
+            --latest

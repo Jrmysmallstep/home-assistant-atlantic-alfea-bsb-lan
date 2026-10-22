@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.15 — Portrait et programme Confort / Éco sur le synoptique
+
+- Portrait/Auto : liaisons verticales courtes sans collecteur latéral superposé.
+- Cartes RDC, Étage, ECS ajustées à la largeur des smartphones.
+- Régime Confort/Éco prioritaire via les programmes actifs 10112/10122 ; valeurs
+  d'état BSB brutes conservées en diagnostic.
+- 65 correspondances d'entités conservées ; aucune commande PAC modifiée.
+- V1.5.14 paysage conservé.
+
+
 ## 1.5.14 — Raccordements PAC → circuits et ECS en paysage
 
 - Corrige le débordement des styles CSS des modes Portrait / Automatique sur le mode Paysage.

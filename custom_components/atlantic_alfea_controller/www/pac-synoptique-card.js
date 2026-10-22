@@ -312,7 +312,7 @@ class PacSynoptiqueCard extends HTMLElement {
   _detailRow(label,key,unit='',decimals=1){
     const st=this._s(key);
     const raw=this._v(key);
-    const value=unit ? formatted(raw,unit,decimals) : (key.startsWith('alarm') || ['compressor','defrost','ecsPump','ecsElectric','override1','override2','pump1','pump2'].includes(key)) ? (raw==='on'?(['pump1','pump2'].includes(key)?'En marche':'Actif'):raw==='off'?(['pump1','pump2'].includes(key)?'Arrêté':'Inactif'):clean(raw)) : clean(raw);
+    const value=(['compressorStarts','startsToday','startsLastHour','shortCycles6h','cycleAverage','cycleLast','stopLast','minimumRun','minimumOff','startsActualRate','startsMaxRate','compressorHours'].includes(key) && nvalue(raw)!==null) ? formatted(raw,unit,0) : unit ? formatted(raw,unit,decimals) : (key.startsWith('alarm') || ['compressor','defrost','ecsPump','ecsElectric','override1','override2','pump1','pump2'].includes(key)) ? (raw==='on'?(['pump1','pump2'].includes(key)?'En marche':'Actif'):raw==='off'?(['pump1','pump2'].includes(key)?'Arrêté':'Inactif'):clean(raw)) : clean(raw);
     return `<div class="detail-row"><span>${html(label)}</span><strong class="${!st||raw==null?'na':''}">${html(value)}</strong></div>`;
   }
   _diagGroup(title,body){return `<section class="diag-group"><h4>${html(title)}</h4>${body}</section>`;}
@@ -385,13 +385,11 @@ class PacSynoptiqueCard extends HTMLElement {
       ['Cycles courts sur 6 heures','shortCycles6h',''],['Temps de marche minimum régulateur','minimumRun','min'],
       ['Temps d’arrêt minimum régulateur','minimumOff','min'],
       ['Démarrages régulateur','startsActualRate','dém./h'],['Seuil démarrages régulateur','startsMaxRate','dém./h']
-    ].map(([name,key,unit])=>this._detailRow(name,key,unit,unit==='h'&&key==='compressorHours'?0:1)).join(''));
+    ].map(([name,key,unit])=>this._detailRow(name,key,unit,0)).join(''));
     const diagPac=this._diagGroup('PAC / circuit hydraulique commun',[
       ['État général','pacState',''],['Température extérieure','outdoor','°C'],
-      ['Départ réel PAC','flow','°C'],['Retour réel PAC','returnTemp','°C'],
-      ['Consigne départ PAC','targetFlow','°C'],['Écart départ / consigne','flowGap','°C'],
       ['Énergie électrique totale cumulée','energy','kWh'],['Dégivrage DI6','defrost',''],
-      ['Horloge PAC','clockTime',''],['Décalage horloge','clockOffset','']
+      ['Horloge PAC','clockTime','']
     ].map(([name,key,unit])=>this._detailRow(name,key,unit,unit==='kWh'?0:1)).join(''));
     const diagCircs=this._diagGroup('Circuits 1 & 2 / programmation',[
       ...[1,2].flatMap(i=>[
@@ -402,14 +400,6 @@ class PacSynoptiqueCard extends HTMLElement {
         [`C${i} — Chauffage Confort`,`heatComfort${i}`,'°C'],[`C${i} — Chauffage Éco`,`heatEco${i}`,'°C'],
         [`C${i} — Rafraîchissement Confort`,`coolComfort${i}`,'°C'],[`C${i} — Rafraîchissement Éco`,`coolEco${i}`,'°C']
       ])
-    ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
-    const diagPumps=this._diagGroup('Capteurs complémentaires / circulateurs',[
-      ['Circulateur C1 · RDC','pump1',''],['Circulateur C2 · Étage','pump2','']
-    ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
-    const diagEcs=this._diagGroup('Eau chaude sanitaire',[
-      ['Production réelle','ecsProduction',''],['État BSB','ecsState',''],
-      ['Température ballon','ecsTemp','°C'],['Consigne Confort','ecsComfort','°C'],
-      ['Consigne Éco','ecsEco','°C'],['Pompe ECS','ecsPump',''],['Appoint électrique','ecsElectric','']
     ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
     this.shadowRoot.innerHTML=`<style>
       /* En auto, les palettes proviennent des variables du thème Home Assistant. */
@@ -739,7 +729,7 @@ class PacSynoptiqueCard extends HTMLElement {
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>
         <p class="details-note">Lecture seule. « — » signifie : entité absente, désactivée, inconnue ou non publiée par BSB-LAN. Les températures de départ cibles des circuits ne sont pas des mesures.</p>
-        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}${diagPumps}${diagEcs}</div>
+        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}</div>
       </details>`:''}
 
     </div></ha-card>`;

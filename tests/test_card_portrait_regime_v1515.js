@@ -21,11 +21,19 @@ vm.runInNewContext(source,{
 assert(registered["pac-synoptique-card"]);
 for(const orientation of ["auto","portrait","landscape"]){
   const instance=new registered["pac-synoptique-card"]();
-  instance.setConfig({layout_orientation:orientation});
-  instance.hass={states:{},themes:{darkMode:true,theme:"test"}};
+  instance.setConfig({layout_orientation:orientation,entities:{
+    circuit1:"climate.rdc",circuit2:"climate.etage",
+    program1:"sensor.prog1",program2:"sensor.prog2"
+  }});
+  instance.hass={states:{
+    "climate.rdc":{state:"heat",attributes:{current_temperature:22.5,temperature:22.5,hvac_action:"idle",regime_consigne:"indéterminé"}},
+    "climate.etage":{state:"heat",attributes:{current_temperature:21.4,temperature:19.5,hvac_action:"idle",regime_consigne:"indéterminé"}},
+    "sensor.prog1":{state:"2 - Allure confort",attributes:{}},
+    "sensor.prog2":{state:"1 - Allure Réduit",attributes:{}}
+  },themes:{darkMode:true,theme:"test"}};
   const html=instance.shadowRoot.innerHTML;
-  assert(html.includes("Régime : "),"comfort/eco label must be rendered dynamically");
-  assert(html.includes('10112 / 10122'),"native schedule display mapping missing");
+  assert(html.includes("Régime : Confort"),"RDC programme confort not rendered");
+  assert(html.includes("Régime : Éco"),"Étage programme réduit/éco not rendered");
   assert(html.includes("portrait mobile sans faux collecteur latéral"),"mobile style marker missing");
   assert(html.includes('data-orientation="portrait"]) .outs:before'),"portrait piping override absent");
   assert(html.includes('data-orientation="auto"]) .outs:before'),"responsive piping override absent");

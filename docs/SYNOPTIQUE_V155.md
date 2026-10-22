@@ -1,4 +1,4 @@
-# Synoptique Atlantic Alféa — V1.5.12
+# Synoptique Atlantic Alféa — V1.5.14
 
 ## Installation via HACS
 
@@ -6,7 +6,7 @@ Le JavaScript est automatiquement installé dans l'intégration :
 `custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
 
 Home Assistant sert l'asset à l'adresse :
-`/alfea-synoptique/pac-synoptique-card.js?v=1.5.13`.
+`/alfea-synoptique/pac-synoptique-card.js?v=1.5.14`.
 
 Redémarrer Home Assistant après HACS, puis ajouter **une unique ressource**
 **Module JavaScript** dans Paramètres → Tableaux de bord → Ressources.
@@ -33,6 +33,13 @@ commandes PAC sont volontairement absentes. Pour la largeur, utiliser l'onglet
 
 Les anciennes cartes configurées en YAML conservent leurs propriétés. Les
 `entities` personnalisées éventuelles ne sont pas réinitialisées par l'éditeur.
+
+## Correctif de liaison V1.5.14
+
+Correction CSS des sélecteurs des modes Portrait/Automatique qui affectaient
+le raccordement droit en paysage : la hauteur de 38px ne s'applique maintenant
+qu'aux raccordements verticaux, et les trois lignes du synoptique paysage se
+raccordent au centre des cartes RDC, Étage et ECS.
 
 ## Dispositions responsive — V1.5.13
 

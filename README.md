@@ -2,7 +2,7 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Version actuelle : **1.5.13**
+> Version actuelle : **1.5.14**
 
 
 ## Aperçu de la carte Lovelace
@@ -39,7 +39,14 @@ D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens 
 - Lecture de l'horloge PAC, détection d'une désynchronisation et bouton de synchronisation avec Home Assistant.
 - Détection automatique des entités BSB-LAN avec possibilité de corriger l'association manuellement.
 
-## Carte Lovelace synoptique incluse (V1.5.13)
+## Carte Lovelace synoptique incluse (V1.5.14)
+
+**Correctif V1.5.14 :** les liaisons dessinées entre la PAC et les trois sorties
+RDC / Étage / ECS retrouvent leur hauteur normale en paysage. Un sélecteur CSS
+de la version précédente appliquait par erreur la hauteur réservée au mode
+portrait au raccordement de droite, même sur grand écran. Aucune modification
+des entités, des animations, des programmes ou des commandes.
+
 
 ### Synoptique V2.8.0 — compact et responsive
 
@@ -90,7 +97,7 @@ Après la mise à jour via HACS, **redémarrez Home Assistant**, puis dans
 ressource de type **Module JavaScript** :
 
 ```text
-/alfea-synoptique/pac-synoptique-card.js?v=1.5.13
+/alfea-synoptique/pac-synoptique-card.js?v=1.5.14
 ```
 
 ### Éditeur visuel (nouveau en V1.5.7)

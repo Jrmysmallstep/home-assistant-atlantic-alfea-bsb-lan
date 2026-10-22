@@ -1,4 +1,4 @@
-# Synoptique Atlantic Alféa — V1.5.7
+# Synoptique Atlantic Alféa — V1.5.12
 
 ## Installation via HACS
 
@@ -6,14 +6,14 @@ Le JavaScript est automatiquement installé dans l'intégration :
 `custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js`.
 
 Home Assistant sert l'asset à l'adresse :
-`/alfea-synoptique/pac-synoptique-card.js?v=1.5.7`.
+`/alfea-synoptique/pac-synoptique-card.js?v=1.5.12`.
 
 Redémarrer Home Assistant après HACS, puis ajouter **une unique ressource**
 **Module JavaScript** dans Paramètres → Tableaux de bord → Ressources.
 Supprimer toute ancienne ressource `/local/pac-synoptique-card.js` pour
 éviter que l'ancien code ne s'enregistre avant le nouveau.
 
-## Éditeur visuel Lovelace (V1.5.7)
+## Éditeur visuel Lovelace (V1.5.12)
 
 1. Dans le tableau de bord, cliquer sur le crayon **Modifier**.
 2. Ajouter la carte **PAC Synoptique — Atlantic Alféa (lecture seule)**,
@@ -44,6 +44,10 @@ grid_options:
   columns: full
   rows: auto
 theme_mode: auto
+layout_style: clean
+show_links: true
+animate_flows: true
+show_pump_badges: true
 ```
 
 ### Thèmes
@@ -87,3 +91,9 @@ La vue est responsive et les alarmes/diagnostics sont repliés par défaut.
 - Erreur 404 sur l'asset : l'intégration doit avoir été chargée après le redémarrage.
 - Ancien visuel : supprimez l'ancien `/local/` dans les Ressources et actualisez le cache.
 - Entités absentes : activez les diagnostics nécessaires et contrôlez leurs noms Home Assistant.
+
+## V1.5.12 — Éditeur enrichi et diagnostics allégés
+
+Le mode `layout_style: clean` affiche des liaisons fines en disposition horizontale et aucune liaison en disposition verticale (largeur de carte inférieure ou égale à 900 px). `layout_style: classic` conserve le schéma original. `show_links`, `animate_flows` et `show_pump_badges` sont configurables dans l'éditeur visuel ; thème automatique/clair/sombre et diagnostics restent disponibles.
+
+Diagnostics : compresseur complet (comptages et durées sans décimales), PAC simplifiée, circuits C1 et C2 conservés. Les groupes séparés « Capteurs complémentaires / circulateurs » et « Eau chaude sanitaire » ne sont plus affichés ; leurs entités ne sont pas supprimées.

@@ -20,9 +20,9 @@ class CirculatorCardTests(unittest.TestCase):
     def test_no_ambiguous_regime_badge(self):
         code = CARD.read_text(encoding="utf-8")
         self.assertNotIn("Régime : ${clean(c.regime", code)
-        self.assertIn("programmedRegime(c.program)", code)
-        self.assertIn("chip('Régime : '+visibleRegime(c)", code)
-        self.assertNotIn("chip(c.native??", code)
+        self.assertNotIn("const visibleRegime = c =>", code)
+        self.assertIn("chip(c.native??", code)
+        self.assertNotIn("chip('Régime : '+visibleRegime(c)", code)
         self.assertIn("C${i} — État actuel", code)
         self.assertIn("vertical-link", code)
         self.assertIn("@container (max-width:680px)", code)

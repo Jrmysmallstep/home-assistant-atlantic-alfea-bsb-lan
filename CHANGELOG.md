@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.14 — Raccordements PAC → circuits et ECS en paysage
+
+- Corrige le débordement des styles CSS des modes Portrait / Automatique sur le mode Paysage.
+- La hauteur des liaisons entre PAC et RDC / Étage / ECS reste alignée sur les trois sorties.
+- Les six groupes de sélecteurs CSS concernés sont maintenant préfixés individuellement.
+- Test de non-régression des sélecteurs et du code visuel.
+- Conserve les 65 correspondances d'entités, thèmes, orientations, animations, diagnostics et alarmes.
+- Aucun changement fonctionnel de la PAC.
+
+
 ## 1.5.13 — Synoptique V2.8 compact et responsive
 
 - Nouvelle configuration `layout_orientation: auto | landscape | portrait`, également accessible via l'éditeur visuel.

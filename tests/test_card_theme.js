@@ -27,4 +27,7 @@ try{new Card().setConfig({theme_mode:"invalid"});throw Error("Mode invalide acce
 catch(err){if(!err.message.includes("theme_mode"))throw err;}
 if(source.includes("hass.callService("))throw Error("Lecture seule non respectée");
 if(!source.includes("programmedRegime = raw =>") || !source.includes("Programme actif"))throw Error("Programme Confort/Éco non préservé dans les diagnostics");
-if(!source.includes("Circulateur C1") || !source.includes("Circulateur C2") || !source.includes("Capteurs complémentaires / circulateurs"))throw Error("Capteurs circulateurs absents des diagnostics");
+if(!source.includes("pump1:") || !source.includes("pump2:") ||
+   !source.includes("C${i} — Circulateur") ||
+   !source.includes("Circulateur actif") || !source.includes("Circulateur arrêté"))
+  throw Error("Capteurs circulateurs absents des diagnostics");

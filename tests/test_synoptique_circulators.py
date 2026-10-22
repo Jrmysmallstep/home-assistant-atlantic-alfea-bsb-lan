@@ -12,8 +12,9 @@ class CirculatorCardTests(unittest.TestCase):
         self.assertIn("pump1:           ['binary_sensor','C1 - Circulateur']", code)
         self.assertIn("pump2:           ['binary_sensor','C2 - Circulateur']", code)
         self.assertIn("pump:this._b(", code)
-        for value in ("Capteurs complémentaires / circulateurs", "Circulateur C1",
-                      "Circulateur C2", "— Circulateur"):
+        # Libellés effectivement exposés depuis V1.5.12 (ancienne liste obsolète).
+        for value in ("Circuits 1 & 2 / programmation", "C${i} — Circulateur",
+                      "Circulateur actif", "Circulateur arrêté", "— Circulateur"):
             self.assertIn(value, code)
 
     def test_no_ambiguous_regime_badge(self):

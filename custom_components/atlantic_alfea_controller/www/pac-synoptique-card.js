@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.6.0 (intégration V1.5.11) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.7.0 (intégration V1.5.12) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.11
+ * Inclus dans atlantic_alfea_controller 1.5.12
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {

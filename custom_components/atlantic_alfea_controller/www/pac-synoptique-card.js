@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.8.0 (intégration V1.5.13) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.8.1 (intégration V1.5.14) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.13
+ * Inclus dans atlantic_alfea_controller 1.5.14
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -718,7 +718,7 @@ class PacSynoptiqueCard extends HTMLElement {
       :host([data-orientation="landscape"]) .output-card{overflow:hidden}
       /* Portrait manuel, indépendamment de la largeur du dashboard. */
 :host([data-orientation="portrait"]) .schematic{display:flex;flex-direction:column;gap:0;min-width:0;grid-template-columns:none;grid-template-rows:none}
-:host([data-orientation="portrait"]) .machine, .pac{min-height:0;width:100%;padding:12px 13px}
+:host([data-orientation="portrait"]) .machine, :host([data-orientation="portrait"]) .pac{min-height:0;width:100%;padding:12px 13px}
 :host([data-orientation="portrait"]) .machine{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:5px 12px}
 :host([data-orientation="portrait"]) .machine .mini-head{grid-column:1/-1}
 :host([data-orientation="portrait"]) .machine .machine-art{grid-column:1;grid-row:2/5;min-height:90px;align-self:stretch}
@@ -729,14 +729,14 @@ class PacSynoptiqueCard extends HTMLElement {
 :host([data-orientation="portrait"]) .exch-col svg{height:66px;width:54px}
 :host([data-orientation="portrait"]) .pac-metrics{gap:6px 10px;padding-top:9px}
 :host([data-orientation="portrait"]) .pac-bottom{font-size:10px}
-:host([data-orientation="portrait"]) .inlink, .outlink{display:block;grid-column:auto;grid-row:auto;flex:0 0 38px;height:38px;width:100%;align-self:stretch;overflow:hidden}
+:host([data-orientation="portrait"]) .inlink, :host([data-orientation="portrait"]) .outlink{display:block;grid-column:auto;grid-row:auto;flex:0 0 38px;height:38px;width:100%;align-self:stretch;overflow:hidden}
 :host([data-orientation="portrait"]) .horizontal-link{display:none}
 :host([data-orientation="portrait"]) .vertical-link{display:block;width:100%;height:100%;overflow:hidden}
 :host([data-orientation="portrait"]) .outs{display:flex;flex-direction:column;grid-column:auto;grid-row:auto;gap:8px;padding-left:20px;margin:0;position:relative;min-width:0}
 :host([data-orientation="portrait"]) .outs:before{content:'';display:block;position:absolute;left:8px;top:0;bottom:50px;width:5px;border-radius:4px;background:var(--pipe)}
 :host([data-orientation="portrait"]) .output-card{position:relative;min-height:105px;padding:10px 12px;overflow:visible}
 :host([data-orientation="portrait"]) .output-card:before{content:'';display:block;position:absolute;left:-21px;top:50%;width:21px;height:5px;margin-top:-2px;background:var(--pipe)}
-:host([data-orientation="portrait"]) .output-card.heat:after, .output-card.cool:after{content:'';display:block;position:absolute;left:-21px;top:50%;width:21px;height:3px;margin-top:-1px;background-color:var(--red);background-image:repeating-linear-gradient(90deg,transparent 0 7px,var(--surface2) 7px 11px);animation:branchFlow 1.1s linear infinite}
+:host([data-orientation="portrait"]) .output-card.heat:after, :host([data-orientation="portrait"]) .output-card.cool:after{content:'';display:block;position:absolute;left:-21px;top:50%;width:21px;height:3px;margin-top:-1px;background-color:var(--red);background-image:repeating-linear-gradient(90deg,transparent 0 7px,var(--surface2) 7px 11px);animation:branchFlow 1.1s linear infinite}
 :host([data-orientation="portrait"]) .output-card.cool:after{background-color:var(--blue)}
 :host([data-orientation="portrait"]) .diag-grid{grid-template-columns:1fr}
 :host([data-orientation="portrait"]) .out-values{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -747,7 +747,7 @@ class PacSynoptiqueCard extends HTMLElement {
       /* Auto : suit la largeur réelle de la carte, utile sur mobile/tablette. */
       @container (max-width:800px){
 :host([data-orientation="auto"]) .schematic{display:flex;flex-direction:column;gap:0;min-width:0;grid-template-columns:none;grid-template-rows:none}
-:host([data-orientation="auto"]) .machine, .pac{min-height:0;width:100%;padding:12px 13px}
+:host([data-orientation="auto"]) .machine, :host([data-orientation="auto"]) .pac{min-height:0;width:100%;padding:12px 13px}
 :host([data-orientation="auto"]) .machine{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:5px 12px}
 :host([data-orientation="auto"]) .machine .mini-head{grid-column:1/-1}
 :host([data-orientation="auto"]) .machine .machine-art{grid-column:1;grid-row:2/5;min-height:90px;align-self:stretch}
@@ -758,14 +758,14 @@ class PacSynoptiqueCard extends HTMLElement {
 :host([data-orientation="auto"]) .exch-col svg{height:66px;width:54px}
 :host([data-orientation="auto"]) .pac-metrics{gap:6px 10px;padding-top:9px}
 :host([data-orientation="auto"]) .pac-bottom{font-size:10px}
-:host([data-orientation="auto"]) .inlink, .outlink{display:block;grid-column:auto;grid-row:auto;flex:0 0 38px;height:38px;width:100%;align-self:stretch;overflow:hidden}
+:host([data-orientation="auto"]) .inlink, :host([data-orientation="auto"]) .outlink{display:block;grid-column:auto;grid-row:auto;flex:0 0 38px;height:38px;width:100%;align-self:stretch;overflow:hidden}
 :host([data-orientation="auto"]) .horizontal-link{display:none}
 :host([data-orientation="auto"]) .vertical-link{display:block;width:100%;height:100%;overflow:hidden}
 :host([data-orientation="auto"]) .outs{display:flex;flex-direction:column;grid-column:auto;grid-row:auto;gap:8px;padding-left:20px;margin:0;position:relative;min-width:0}
 :host([data-orientation="auto"]) .outs:before{content:'';display:block;position:absolute;left:8px;top:0;bottom:50px;width:5px;border-radius:4px;background:var(--pipe)}
 :host([data-orientation="auto"]) .output-card{position:relative;min-height:105px;padding:10px 12px;overflow:visible}
 :host([data-orientation="auto"]) .output-card:before{content:'';display:block;position:absolute;left:-21px;top:50%;width:21px;height:5px;margin-top:-2px;background:var(--pipe)}
-:host([data-orientation="auto"]) .output-card.heat:after, .output-card.cool:after{content:'';display:block;position:absolute;left:-21px;top:50%;width:21px;height:3px;margin-top:-1px;background-color:var(--red);background-image:repeating-linear-gradient(90deg,transparent 0 7px,var(--surface2) 7px 11px);animation:branchFlow 1.1s linear infinite}
+:host([data-orientation="auto"]) .output-card.heat:after, :host([data-orientation="auto"]) .output-card.cool:after{content:'';display:block;position:absolute;left:-21px;top:50%;width:21px;height:3px;margin-top:-1px;background-color:var(--red);background-image:repeating-linear-gradient(90deg,transparent 0 7px,var(--surface2) 7px 11px);animation:branchFlow 1.1s linear infinite}
 :host([data-orientation="auto"]) .output-card.cool:after{background-color:var(--blue)}
 :host([data-orientation="auto"]) .diag-grid{grid-template-columns:1fr}
 :host([data-orientation="auto"]) .out-values{grid-template-columns:repeat(2,minmax(0,1fr))}

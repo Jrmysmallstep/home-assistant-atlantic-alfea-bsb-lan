@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.8.3 (intégration V1.5.16) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.8.4 (intégration V1.5.20) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.16
+ * Inclus dans atlantic_alfea_controller 1.5.20
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -277,6 +277,16 @@ class PacSynoptiqueCard extends HTMLElement {
     if(c1==='off'&&c2==='off') return 'off';
     return 'unknown';
   }
+  _nativePreset(st, off){
+    if(off) return {label:'OFF',tone:'dim'};
+    const raw=st?.attributes?.preset_mode;
+    if(isMissing(raw)) return {label:'Régime indisponible',tone:'dim'};
+    const value=norm(String(raw));
+    if(value==='auto') return {label:'AUTO',tone:'positive'};
+    if(value==='eco' || value==='reduit') return {label:'ECO forcé',tone:'warning'};
+    if(value==='confort' || value==='comfort') return {label:'Confort forcé',tone:'warning'};
+    return {label:'Régime indisponible',tone:'dim'};
+  }
   _circuit(i){
     const key=`circuit${i}`;
     const st=this._s(key);
@@ -378,7 +388,8 @@ class PacSynoptiqueCard extends HTMLElement {
         <span class="state-dot ${branchTone(c)}"></span></div>
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
-      <div class="out-foot">${chip(c.native??'État BSB-LAN indisponible','dim')}
+      <div class="out-foot">${chip(c.nativePreset?.label ?? (c.off?'OFF':'Régime indisponible'),c.nativePreset?.tone ?? 'dim')}
+        ${chip(c.native??'État BSB-LAN indisponible','dim')}
         ${this._config.show_pump_badges!==false && c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>
     </section>`;

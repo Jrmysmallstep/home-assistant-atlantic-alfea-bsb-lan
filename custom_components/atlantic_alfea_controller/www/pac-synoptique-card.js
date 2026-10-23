@@ -388,7 +388,7 @@ class PacSynoptiqueCard extends HTMLElement {
         <span class="state-dot ${branchTone(c)}"></span></div>
       <div class="out-values"><div><span>Température ambiante</span><strong>${html(temp(c.current))}</strong></div>
         <div><span>Consigne effective</span><strong>${html(temp(c.target))}</strong></div></div>
-      <div class="out-foot">${chip(c.nativePreset.label,c.nativePreset.tone)}
+      <div class="out-foot">${chip(c.nativePreset?.label ?? (c.off?'OFF':'Régime indisponible'),c.nativePreset?.tone ?? 'dim')}
         ${chip(c.native??'État BSB-LAN indisponible','dim')}
         ${this._config.show_pump_badges!==false && c.pump!==null?chip(c.pump?'Circulateur actif':'Circulateur arrêté',c.pump?'positive':'dim'):''}
         ${c.override===true?chip('Dérogation active','warning'):''}</div>

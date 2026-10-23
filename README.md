@@ -2,7 +2,7 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Version actuelle : **1.5.16**
+> Dernière version publiée : **1.5.16** · Code de développement 1.5.17 en préparation
 
 
 ## Aperçu de la carte Lovelace

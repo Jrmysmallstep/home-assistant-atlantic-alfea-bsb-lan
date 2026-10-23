@@ -1,0 +1,13 @@
+const fs=require('fs');
+const assert=require('assert');
+const card=fs.readFileSync('custom_components/atlantic_alfea_controller/www/pac-synoptique-card.js','utf8');
+assert(card.includes("st?.attributes?.preset_mode"), 'Climate preset is the source');
+assert(card.includes("label:'AUTO'"));
+assert(card.includes("label:'ECO forcé'"));
+assert(card.includes("label:'Confort forcé'"));
+assert(card.includes("if(off) return {label:'OFF'"));
+assert(card.includes("chip(c.nativePreset.label,c.nativePreset.tone)"));
+assert(card.includes("chip(c.native??'État BSB-LAN indisponible','dim')"));
+assert(card.includes("program:this._v(`program${i}`)"));
+assert(card.includes("pump:this._b(`pump${i}`)"));
+console.log('PASS: native regime badge, OFF priority, native BSB state and pumps remain');

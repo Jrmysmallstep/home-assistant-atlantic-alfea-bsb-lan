@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.8.4 (intégration V1.5.20) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.8.5 (intégration V1.5.21) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.20
+ * Inclus dans atlantic_alfea_controller 1.5.21
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -300,6 +300,7 @@ class PacSynoptiqueCard extends HTMLElement {
       (isMissing(mode)?'État indisponible':'En attente');
     return {
       number:i, key, mode, action, active, off, isHeating, isCooling, actionText,
+      nativePreset:this._nativePreset(st,off),
       current:st?.attributes?.current_temperature,target:st?.attributes?.temperature,
       regime:st?.attributes?.regime_consigne, native:this._v(`circuit${i}State`),
       program:this._v(`program${i}`), pump:this._b(`pump${i}`),

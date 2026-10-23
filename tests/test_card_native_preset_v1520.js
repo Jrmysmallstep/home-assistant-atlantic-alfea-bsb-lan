@@ -11,3 +11,5 @@ assert(card.includes("chip(c.native??'État BSB-LAN indisponible','dim')"));
 assert(card.includes("program:this._v(`program${i}`)"));
 assert(card.includes("pump:this._b(`pump${i}`)"));
 console.log('PASS: native regime badge, OFF priority, native BSB state and pumps remain');
+
+assert(card.includes('nativePreset:this._nativePreset(st,off)'), 'Every circuit must pass its resolved preset to the renderer');

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import timedelta
 
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ClimateEntityFeature, HVACAction, HVACMode
@@ -14,6 +15,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.event import async_track_time_interval
 
 from .const import BSB_AUTO, BSB_PROTECTION, DOMAIN, MODE_COOL, MODE_HEAT, MODE_OFF, TEMPERATURE_STEP
 from .helpers import (
@@ -35,6 +37,7 @@ from .helpers import (
     track_entities,
 )
 from .polling import async_poll_parameters
+from .regime_api import PRESETS, REVERSE_PRESETS, RegimeAPI
 
 _LOGGER = logging.getLogger(__name__)
 _OVERRIDE_DEBOUNCE_SECONDS = 2.0
@@ -102,6 +105,12 @@ class AlfeaCircuitClimate(ClimateEntity):
         self.hass = hass
         self._entry = entry
         self._circuit = circuit
+        self._regime_code: int | None = None
+        address = str(entry.options.get("bsb_base_url", "")).strip()
+        self._regime_api = RegimeAPI(hass, address) if address else None
+        if self._regime_api is not None:
+            self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
+            self._attr_preset_modes = list(PRESETS)
         self._pending_target_temperature: float | None = None
         self._pending_base_temperature: float | None = None
         self._pending_override_task: asyncio.Task | None = None
@@ -185,6 +194,46 @@ class AlfeaCircuitClimate(ClimateEntity):
         if code is None:
             return None, None, text
         return code != 1, code, text
+
+    @property
+    def preset_mode(self) -> str | None:
+        """Actual native operating regime; never inferred from schedule."""
+        if self._regime_api is None:
+            return None
+        if self.hvac_mode == HVACMode.OFF:
+            return None
+        return REVERSE_PRESETS.get(self._regime_code)
+
+    async def _refresh_regime(self) -> None:
+        if self._regime_api is None:
+            return
+        try:
+            self._regime_code = await self._regime_api.read(self._circuit)
+        except Exception as exc:
+            _LOGGER.warning("Lecture mode C%s (BSB %s) impossible: %s",
+                            self._circuit, 700 if self._circuit == 1 else 1000, exc)
+            self._regime_code = None
+        self.async_write_ha_state()
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Keep OFF priority and control only the circuit's native regime."""
+        if self._regime_api is None:
+            raise HomeAssistantError("Configurer l'URL BSB-LAN dans les options de l'intégration.")
+        if preset_mode not in PRESETS:
+            raise HomeAssistantError("Régime inconnu")
+        if self.hvac_mode == HVACMode.OFF or self._mode() not in (MODE_HEAT, MODE_COOL):
+            raise HomeAssistantError("Circuit OFF : aucune commande Auto/ECO/Confort envoyée.")
+        # Do not overwrite a previously entered native temporary override.
+        active, _code, _label = self._override_state()
+        if active is True:
+            raise HomeAssistantError("Dérogation native active : annulez-la avant de changer le régime.")
+        try:
+            self._regime_code = await self._regime_api.set_preset(self._circuit, preset_mode)
+        except Exception as exc:
+            self._regime_code = None
+            self.async_write_ha_state()
+            raise HomeAssistantError(f"Commande régime C{self._circuit} non confirmée : {exc}") from exc
+        self.async_write_ha_state()
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
@@ -605,6 +654,13 @@ class AlfeaCircuitClimate(ClimateEntity):
         self.async_write_ha_state()
 
     async def async_added_to_hass(self) -> None:
+        if self._regime_api is not None:
+            await self._refresh_regime()
+            self.async_on_remove(async_track_time_interval(
+                self.hass,
+                lambda _now: self.hass.async_create_task(self._refresh_regime()),
+                timedelta(seconds=60),
+            ))
         self.async_on_remove(self._cancel_pending_override)
         self.async_on_remove(async_dispatcher_connect(
             self.hass, f"{DOMAIN}_pump_feedback_{self._entry.entry_id}", self.async_write_ha_state

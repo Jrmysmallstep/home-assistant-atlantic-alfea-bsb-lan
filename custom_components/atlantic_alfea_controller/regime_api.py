@@ -73,9 +73,11 @@ class RegimeAPI:
                 async with self._session.post(f"{self._base}/JS", json=payload) as response:
                     response.raise_for_status()
                     result = await response.json(content_type=None)
-            # The documented API returns {"parameter": ..., "status": 1}.
-            if not isinstance(result, dict) or result.get("status") != 1:
-                raise ValueError(f"BSB-LAN n'a pas confirmé l'écriture {parameter}: {result!r}")
+            # BSB-LAN /JS returns {"700": {"status": 1, "destination": 0}}.
+            # Still read back the actual value with /JQ below.
+            outcome = result.get(str(parameter)) if isinstance(result, dict) else None
+            if not isinstance(outcome, dict) or outcome.get("status") != 1:
+                raise ValueError(f"BSB-LAN did not acknowledge {parameter}: {result!r}")
             for _ in range(5):
                 confirmed = await self.read(circuit)
                 if confirmed == desired:

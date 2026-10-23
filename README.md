@@ -20,6 +20,27 @@ Cette intégration a été développée et testée sur une **Atlantic Alféa Ext
 
 D'autres modèles Atlantic Alféa ou d'autres variantes de régulateurs Siemens RVS peuvent être compatibles, mais ils ne sont pas considérés comme validés tant que les paramètres BSB-LAN correspondants n'ont pas été vérifiés.
 
+## Travail en cours — présélections Auto / ECO / Confort (branche de développement)
+
+Cette branche ajoute une implémentation **expérimentale**, non publiée, de la lecture
+et commande des régimes natifs par circuit directement depuis les thermostats
+Home Assistant. Les versions HACS publiées restent inchangées.
+
+- Paramètre 700 pour C1 et 1000 pour C2 : Auto = 1, ECO = 2, Confort = 3.
+- Mode OFF individuel inchangé : lorsqu'un circuit est arrêté, le preset n'envoie
+  aucune commande. Le mode protection (0) n'est jamais commandé par un preset.
+- Le mode global chauffage/rafraîchissement est inchangé.
+- Dans les options d'intégration, renseigner **Adresse BSB-LAN JSON**
+  (par exemple `http://192.168.1.88`). Aucun emplacement MQTT nécessaire.
+- Le statut est relu par `/JQ=700` ou `/JQ=1000` toutes les 60 secondes ;
+  les écritures passent par un POST `/JS` et sont confirmées par relecture.
+- Tant que l'adresse BSB-LAN n'est pas configurée, aucun preset n'est proposé.
+- Le basculement automatique en fonction de la présence n'est **pas encore
+  développé**. L'essai réel en chauffage puis rafraîchissement reste nécessaire.
+
+**Ne pas diffuser comme release tant que les essais et tests de régression
+n'ont pas été exécutés.**
+
 ## Fonctionnalités
 
 - Mode global de la PAC : **Off / Chauffage / Refroidissement**. Une commande globale active les deux circuits dans le mode demandé ou les arrête tous les deux, avec vérification des retours d'état BSB-LAN.

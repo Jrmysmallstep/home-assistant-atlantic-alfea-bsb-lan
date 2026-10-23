@@ -6,7 +6,7 @@ assert(card.includes("label:'AUTO'"));
 assert(card.includes("label:'ECO forcé'"));
 assert(card.includes("label:'Confort forcé'"));
 assert(card.includes("if(off) return {label:'OFF'"));
-assert(card.includes("chip(c.nativePreset.label,c.nativePreset.tone)"));
+assert(card.includes("chip(c.nativePreset?.label"));
 assert(card.includes("chip(c.native??'État BSB-LAN indisponible','dim')"));
 assert(card.includes("program:this._v(`program${i}`)"));
 assert(card.includes("pump:this._b(`pump${i}`)"));

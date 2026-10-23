@@ -1,4 +1,4 @@
-name: Atlantic Alféa V1.5.17 — états natifs
+name: Atlantic Alféa V1.5.18 — états natifs
 on:
   pull_request:
     branches: [main]
@@ -26,13 +26,13 @@ jobs:
           node tests/test_card_theme.js
           node tests/test_card_visual_editor.js
           node tests/test_card_portrait_regime_v1515.js
-      - name: Manifest V1.5.17
+      - name: Manifest V1.5.18
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
           p=Path("custom_components/atlantic_alfea_controller/manifest.json")
-          assert json.loads(p.read_text())["version"]=="1.5.17"
+          assert json.loads(p.read_text())["version"]=="1.5.18"
           PY
   release:
     needs: checks
@@ -40,13 +40,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Créer la release V1.5.17
+      - name: Créer la release V1.5.18
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view V1.5.17 >/dev/null 2>&1; then exit 0; fi
-          gh release create V1.5.17 \
+          if gh release view V1.5.18 >/dev/null 2>&1; then exit 0; fi
+          gh release create V1.5.18 \
             --target "$GITHUB_SHA" \
-            --title "Atlantic Alféa BSB-LAN V1.5.17" \
-            --notes-file docs/RELEASE_NOTES_V1517.md \
+            --title "Atlantic Alféa BSB-LAN V1.5.18" \
+            --notes-file docs/RELEASE_NOTES_V1518.md \
             --latest

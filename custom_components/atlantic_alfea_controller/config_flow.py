@@ -300,10 +300,15 @@ class AtlanticAlfeaOptionsFlow(OptionsFlowWithReload):
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         if user_input is not None:
+            from .regime_api import valid_base_url
+            address = user_input.get("bsb_base_url", "").strip()
+            if address and not valid_base_url(address):
+                return self.async_show_form(step_id="init", errors={"base": "invalid_url"})
             return self.async_create_entry(data=user_input)
 
         schema = vol.Schema(
             {
+                vol.Optional("bsb_base_url", default=self.config_entry.options.get("bsb_base_url", "")): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.URL)),
                 vol.Required(
                     CONF_SHORT_CYCLE_MINUTES,
                     default=self.config_entry.options.get(

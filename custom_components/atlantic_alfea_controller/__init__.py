@@ -86,7 +86,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # MQTT-discovery sensor exists for these newly logged parameters.
     feedback = hass.data.setdefault(DOMAIN, {}).setdefault("pump_feedback", {})
     feedback[entry.entry_id] = {}
-    entry.async_on_unload(lambda: feedback.pop(entry.entry_id, None))
+    def _clear_pump_feedback() -> None:
+        feedback.pop(entry.entry_id, None)
+
+    entry.async_on_unload(_clear_pump_feedback)
 
     for circuit, parameter in ((1, 9031), (2, 8760)):
         def _handle_pump(message, *, _circuit=circuit):
@@ -100,8 +103,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 on = False
             else:
                 return
-            feedback[entry.entry_id][_circuit] = on
-            async_dispatcher_send(hass, f"{DOMAIN}_pump_feedback_{entry.entry_id}")
+            # MQTT callbacks can run off the HA event-loop thread. Schedule
+            # both the cache update and dispatcher signal onto the HA loop.
+            def _notify_on_loop() -> None:
+                current = feedback.get(entry.entry_id)
+                if current is None:
+                    return  # Integration unloaded between callback and dispatch.
+                current[_circuit] = on
+                async_dispatcher_send(hass, f"{DOMAIN}_pump_feedback_{entry.entry_id}")
+
+            hass.add_job(_notify_on_loop)
 
         unsub = await async_subscribe(
             hass, f"BSB-LAN/+/+/{parameter}/status", _handle_pump, qos=0

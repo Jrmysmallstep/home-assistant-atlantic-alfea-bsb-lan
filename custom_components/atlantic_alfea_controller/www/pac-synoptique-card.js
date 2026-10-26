@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.4 (intégration V1.5.25 bêta 2) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.4 (intégration V1.5.25 bêta 3) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.25b2
+ * Inclus dans atlantic_alfea_controller 1.5.25b3
  * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
@@ -742,8 +742,8 @@ class PacSynoptiqueCard extends HTMLElement {
       .weekly-day-body{min-width:0}
       .weekly-track{height:18px;border:1px solid var(--panel-line);border-radius:5px;
         position:relative;overflow:hidden;background-color:var(--soft);
-        background-image:repeating-linear-gradient(to right,
-          var(--panel-line) 0,var(--panel-line) 1px,transparent 1px,transparent calc(100% / 24))}
+        background-image:linear-gradient(to right,var(--panel-line) 1px,transparent 1px);
+        background-size:4.1666667% 100%}
       .weekly-slot{position:absolute;top:1px;bottom:1px;background:var(--weekly-accent);
         border-radius:3px;min-width:2px}
       .weekly-times{display:flex;flex-wrap:wrap;gap:4px 7px;margin-top:5px;

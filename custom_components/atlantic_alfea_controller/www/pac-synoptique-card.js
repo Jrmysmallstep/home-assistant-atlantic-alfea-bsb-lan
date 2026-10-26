@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.4 (intégration V1.5.25 bêta 3) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.5 (intégration V1.5.25 bêta 4) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.25b3
+ * Inclus dans atlantic_alfea_controller 1.5.25b4
  * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
@@ -1108,14 +1108,19 @@ class PacSynoptiqueCard extends HTMLElement {
       @keyframes aerienSignal{
         0%,100%{opacity:1}50%{opacity:.52}
       }
-      /* Aérien v2.9.2 : tuyauterie renforcée (sans modifier les autres thèmes). */
+      /* Aérien v2.9.5 : diamètre constant entre conduites et vanne Q3.
+         vector-effect neutralise la déformation due au viewBox étiré des liaisons. */
       :host([data-layout-style="aerien"]) .linksvg path.track{
-        stroke:var(--aerien-tube);stroke-width:8;opacity:.9}
+        stroke:var(--aerien-tube);stroke-width:10;opacity:.9;
+        vector-effect:non-scaling-stroke}
       :host([data-layout-style="aerien"]) .linksvg path.live{
-        stroke-width:4;stroke-dasharray:8 15;
+        stroke-width:10;stroke-dasharray:8 15;
+        vector-effect:non-scaling-stroke;
         animation:flow 2.25s linear infinite}
-      :host([data-layout-style="aerien"]) .v3v-symbol .port{stroke-width:9}
-      :host([data-layout-style="aerien"]) .v3v-symbol .route{stroke-width:6}
+      :host([data-layout-style="aerien"]) .v3v-symbol .port{
+        stroke-width:10;vector-effect:non-scaling-stroke}
+      :host([data-layout-style="aerien"]) .v3v-symbol .route{
+        stroke-width:10;vector-effect:non-scaling-stroke}
       :host([data-layout-style="aerien"]) details{
         border:1px solid var(--aerien-border);border-radius:15px;
         padding:12px 15px;margin-top:9px;background:var(--aerien-panel)}

@@ -69,6 +69,30 @@ validés. En cas d'erreur, le capteur affiche `Erreur` et conserve sa
 dernière importation horodatée pour diagnostic (elle ne doit pas être
 interprétée comme une lecture récente).
 
+### Carte hebdomadaire Lovelace (prototype)
+
+L'intégration expose également une carte `pac-programmes-card` :
+trois onglets (chauffage RDC, étage, ECS), sept jours, frise 24 h,
+jusqu'à trois plages par jour et bouton d'actualisation.
+Les entités sont détectées par leur paramètre source, ou peuvent être
+renseignées explicitement si plusieurs installations coexistent.
+
+Ajouter la ressource JavaScript **module** dans
+Paramètres → Tableaux de bord → Ressources :
+
+`/alfea-synoptique/pac-programmes-card.js?v=1.5.25`
+
+Puis créer une carte manuelle :
+
+```yaml
+type: custom:pac-programmes-card
+title: Programmes horaires PAC
+```
+
+Optionnellement, préciser `chauffage_c1`, `chauffage_c2`, `ecs` et
+`refresh_button` avec les identifiants d'entité correspondants.
+**Attention :** il s'agit d'un prototype non encore testé sur la PAC réelle.
+
 Les programmes de **rafraîchissement C1/C2** seront intégrés après validation
 de leur lecture via l'API JSON : les trames bus identifiées ne constituent pas
 encore des paramètres `/JQ` confirmés.

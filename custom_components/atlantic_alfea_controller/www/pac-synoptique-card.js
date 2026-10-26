@@ -745,7 +745,7 @@ class PacSynoptiqueCard extends HTMLElement {
       .weekly-help{font-size:11px;color:var(--sub);margin-bottom:13px}
       .weekly-chart{--weekly-day-width:34px;--weekly-label-width:48px;--weekly-gap:8px;min-width:0}
       .weekly-axis{display:grid;grid-template-columns:var(--weekly-day-width) var(--weekly-label-width) minmax(0,1fr);
-        column-gap:var(--weekly-gap);margin:0 0 8px}
+        column-gap:var(--weekly-gap);margin:0 0 8px;padding:0 8px}
       .weekly-axis-ticks{display:flex;justify-content:space-between;
         font-size:10px;color:var(--sub);font-variant-numeric:tabular-nums}
       .weekly-days{display:grid;gap:7px}
@@ -778,6 +778,7 @@ class PacSynoptiqueCard extends HTMLElement {
       @media(max-width:520px){
         .weekly-chart{--weekly-day-width:28px;--weekly-label-width:38px;--weekly-gap:4px}
         .weekly-day-group{padding:8px 4px}
+        .weekly-axis{padding:0 4px}
         .weekly-axis-ticks{font-size:9px}
         .weekly-times{font-size:9px;gap:2px 5px}
         .weekly-lane-label,.weekly-day{font-size:10px}

@@ -12,6 +12,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
 from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_ids, pac_clock_datetime
 from .const import CONF_Q3_DIVERTER_CONFIRMED, DOMAIN, MODE_COOL, MODE_HEAT
@@ -372,11 +373,19 @@ class AlfeaV3VCommandSensor(SensorEntity):
             )
         return self._entry.options.get(CONF_Q3_DIVERTER_CONFIRMED, False) is True
 
+    def _command(self) -> bool | None:
+        command = state_is_on(self.hass, self._command_source())
+        if command is not None:
+            return command
+        # Fallback when BSB-LAN publishes 8820 but MQTT discovery has not
+        # created an entity. None means no valid status message received yet.
+        return self.hass.data.get(DOMAIN, {}).get("v3v_feedback", {}).get(self._entry.entry_id)
+
     @property
     def native_value(self) -> str | None:
         if not self._is_diverter():
             return None
-        command = state_is_on(self.hass, self._command_source())
+        command = self._command()
         if command is None:
             return None
         return "ECS" if command else "Chauffage"
@@ -393,6 +402,10 @@ class AlfeaV3VCommandSensor(SensorEntity):
             ),
             "parametre_configuration": 5731,
             "parametre_commande": 8820,
+            "source_commande": (
+                "entite_home_assistant" if state_is_on(self.hass, self._command_source()) is not None
+                else "mqtt_direct" if self._command() is not None else "indisponible"
+            ),
             "retour_position_mecanique": False,
         }
 
@@ -400,6 +413,11 @@ class AlfeaV3VCommandSensor(SensorEntity):
         self.async_on_remove(track_entities(
             self.hass,
             [self._configuration_source(), self._command_source()],
+            self.async_write_ha_state,
+        ))
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass,
+            f"{DOMAIN}_v3v_feedback_{self._entry.entry_id}",
             self.async_write_ha_state,
         ))
 

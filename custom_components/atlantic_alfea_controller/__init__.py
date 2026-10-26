@@ -119,6 +119,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         entry.async_on_unload(unsub)
 
+    # Q3 command (8820): like pump feedback, this can be published on MQTT
+    # without creating a Home Assistant entity via MQTT discovery.
+    v3v_feedback = hass.data.setdefault(DOMAIN, {}).setdefault("v3v_feedback", {})
+    v3v_feedback[entry.entry_id] = None
+    entry.async_on_unload(lambda: v3v_feedback.pop(entry.entry_id, None))
+
+    def _handle_v3v(message) -> None:
+        payload = message.payload
+        if isinstance(payload, bytes):
+            payload = payload.decode("utf-8", errors="replace")
+        value = str(payload).strip().lower()
+        if value in ("1", "on", "true", "activé") or value.startswith("1 -"):
+            commanded_ecs = True
+        elif value in ("0", "off", "false", "désactivé") or value.startswith("0 -"):
+            commanded_ecs = False
+        else:
+            return
+
+        def _notify_on_loop() -> None:
+            if entry.entry_id not in v3v_feedback:
+                return
+            v3v_feedback[entry.entry_id] = commanded_ecs
+            async_dispatcher_send(hass, f"{DOMAIN}_v3v_feedback_{entry.entry_id}")
+
+        hass.add_job(_notify_on_loop)
+
+    unsub_v3v = await async_subscribe(
+        hass, "BSB-LAN/+/+/8820/status", _handle_v3v, qos=0
+    )
+    entry.async_on_unload(unsub_v3v)
+
     monitor = AlfeaRuntimeMonitor(hass, entry)
     entry.runtime_data = monitor
     await monitor.async_start()

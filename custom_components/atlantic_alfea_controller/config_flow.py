@@ -17,6 +17,7 @@ from .const import (
     CONF_FLOW_GAP_DURATION_MINUTES,
     CONF_FREQUENT_STARTS_PER_HOUR,
     CONF_SHORT_CYCLE_MINUTES,
+    CONF_Q3_DIVERTER_CONFIRMED,
     DEFAULT_FLOW_GAP_DEGREES,
     DEFAULT_FLOW_GAP_DURATION_MINUTES,
     DEFAULT_FREQUENT_STARTS_PER_HOUR,
@@ -309,6 +310,10 @@ class AtlanticAlfeaOptionsFlow(OptionsFlowWithReload):
         schema = vol.Schema(
             {
                 vol.Optional("bsb_base_url", default=self.config_entry.options.get("bsb_base_url", "")): selector.TextSelector(selector.TextSelectorConfig(type=selector.TextSelectorType.URL)),
+                vol.Required(
+                    CONF_Q3_DIVERTER_CONFIRMED,
+                    default=self.config_entry.options.get(CONF_Q3_DIVERTER_CONFIRMED, False),
+                ): selector.BooleanSelector(),
                 vol.Required(
                     CONF_SHORT_CYCLE_MINUTES,
                     default=self.config_entry.options.get(

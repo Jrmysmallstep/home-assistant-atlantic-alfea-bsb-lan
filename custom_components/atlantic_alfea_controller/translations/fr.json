@@ -36,6 +36,7 @@
         "title": "Seuils de surveillance",
         "description": "Le paramètre BSB 2842 est prioritaire pour la détection des cycles courts. La valeur ci-dessous sert uniquement de secours. Le dégivrage normal et une charge ECS ne déclenchent pas l’alarme d’écart départ/consigne.",
         "data": {
+          "q3_diverter_confirmed": "Q3 est une vanne 3 voies ECS (5731 = 2) — configuration vérifiée sur ma PAC, sans publier 5731",
           "short_cycle_minutes": "Cycle court — seuil de secours si 2842 est indisponible (minutes)",
           "frequent_starts_per_hour": "Démarrages fréquents — seuil par heure",
           "flow_gap_degrees": "Écart départ / consigne — seuil (°C)",

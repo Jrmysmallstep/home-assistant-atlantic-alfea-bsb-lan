@@ -40,6 +40,27 @@ version publiée demeure V1.5.22 jusqu'à validation et publication.**
 
 
 
+## Préversion V1.5.25b5 — comparaison regroupée par jour (synoptique V2.9.6)
+
+À la demande de l'utilisateur, les trois calendriers séparés de la bêta 3
+ont été réunis dans **un seul graphique hebdomadaire** :
+
+- **Sept groupes : lundi à dimanche**, avec une seule graduation 0–24 h commune.
+- Chaque jour affiche **une ligne par programme coché** (RDC, étage, ECS),
+  sur la même échelle, les uns sous les autres, **sans superposition**.
+- Les horaires de chaque plage restent visibles à la minute sous la ligne.
+- Les couleurs et les cases à cocher sont conservées, ainsi que le bouton
+  **↻ Actualiser** placé à côté.
+- Les 3 programmes sélectionnés produisent 21 lignes ; 2 programmes,
+  14 lignes ; un programme, 7 lignes. Le graphique conserve toujours
+  exactement **7 jours** et une seule graduation.
+- Les correctifs des bêtas précédentes (MQTT, diamètre des tuyaux Aérien)
+  restent inclus.
+
+**Préversion de test :** tag `v1.5.25b5` sur
+`feature/native-weekly-programs-readonly`, avec « Set as a pre-release ».
+Rendu final à valider dans Home Assistant.
+
 ## Préversion V1.5.25b4 — tuyauterie homogène (synoptique V2.9.5)
 
 Suite à une capture du raccordement de la vanne 3 voies Q3,

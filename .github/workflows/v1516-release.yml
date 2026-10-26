@@ -1,9 +1,6 @@
 name: Atlantic Alféa V1.5.21 — états natifs
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_dispatch: # Version 1.5.21 déjà publiée ; workflow historique archivé
 permissions:
   contents: write
 jobs:

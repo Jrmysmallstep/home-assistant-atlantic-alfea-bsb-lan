@@ -2,8 +2,43 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Dernière version publiée : **1.5.16** · Code de développement 1.5.17 en préparation
+> Dernière version publiée : **1.5.22**
 
+
+## Synoptique Aérien (V1.5.22)
+
+Une nouvelle présentation **Aérien** est incluse dans la carte Lovelace,
+sans dépendance ni image externe : COMP **de face**, carter plat sans ailettes
+latérales ni logo, quatre pales SVG strictement identiques, échangeurs
+froid/chaud redessinés avec un cadre et un trait assortis. Le fond suit le
+thème Home Assistant (clair/sombre) ; les cartes, les raccordements et les
+bordures sont plus discrets.
+
+- **Conservation des 65 correspondances d'entités** et de tous les champs :
+  RDC/Étage (mode natif, état BSB brut, circulateur, température et consigne),
+  ECS, COMP, PAC, dérogations et alarmes/diagnostics.
+- Les animations sont indicatives : rotation COMP lorsque confirmé en marche,
+  pulsation légère des échangeurs, liaisons rouge/bleu selon activité
+  réelle de chauffage/rafraîchissement, ECS colorée pendant une production
+  confirmée, jauge de modulation interpolée.
+- Aucune pression frigorifique, puissance ou vanne fictive ; pas d'aller/retour
+  hydraulique inventé. **La carte est uniquement en lecture seule**.
+- **Classique** et **Épurée** restent disponibles comme avant.
+
+Dans l'éditeur visuel, choisir **Présentation des circuits → Aérien** ou :
+```yaml
+type: custom:pac-synoptique-card
+title: Atlantic Alféa Extensa Duo
+layout_style: aerien
+layout_orientation: auto
+theme_mode: auto
+show_diagnostics: true
+grid_options:
+  columns: full
+  rows: auto
+```
+Après mise à jour HACS et redémarrage Home Assistant, versionner la ressource :
+`/alfea-synoptique/pac-synoptique-card.js?v=1.5.22`.
 
 ## Aperçu de la carte Lovelace
 

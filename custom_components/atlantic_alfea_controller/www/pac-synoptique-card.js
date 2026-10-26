@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.8.5 (intégration V1.5.21) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.0 (intégration V1.5.22) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.21
+ * Inclus dans atlantic_alfea_controller 1.5.22
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -189,8 +189,8 @@ class PacSynoptiqueCard extends HTMLElement {
     if(config.show_links != null && typeof config.show_links !== 'boolean') throw new Error('show_links doit être un booléen');
     if(config.animate_flows != null && typeof config.animate_flows !== 'boolean') throw new Error('animate_flows doit être un booléen');
     if(config.show_pump_badges != null && typeof config.show_pump_badges !== 'boolean') throw new Error('show_pump_badges doit être un booléen');
-    if(config.layout_style != null && !['classic','clean'].includes(config.layout_style)) {
-      throw new Error('layout_style doit être classic ou clean');
+    if(config.layout_style != null && !['classic','clean','aerien'].includes(config.layout_style)) {
+      throw new Error('layout_style doit être classic, clean ou aerien');
     }
     if(config.layout_orientation != null && !['auto','landscape','portrait'].includes(config.layout_orientation)) {
       throw new Error('layout_orientation doit être auto, landscape ou portrait');
@@ -219,7 +219,7 @@ class PacSynoptiqueCard extends HTMLElement {
     this._lastThemeName = hass.themes?.theme;
     this.dataset.pacTheme = selected === 'auto' ? 'auto' : selected;
     this.dataset.pacScheme = rendered;
-    this.dataset.layoutStyle = this._config.layout_style === 'clean' ? 'clean' : 'classic';
+    this.dataset.layoutStyle = ['classic','clean','aerien'].includes(this._config.layout_style) ? this._config.layout_style : 'classic';
     this.dataset.orientation = this._config.layout_orientation || 'auto';
     this.dataset.showLinks = this._config.show_links === false ? 'false' : 'true';
     this.dataset.animateFlows = this._config.animate_flows === false ? 'false' : 'true';
@@ -833,6 +833,159 @@ class PacSynoptiqueCard extends HTMLElement {
         :host([data-orientation="auto"]) .outlink{
           flex-basis:25px;height:25px;min-height:25px}
       }
+
+      /* V2.9.0 — style Aérien : fidèle aux dernières maquettes.
+         Aucune image/photo, ni donnée supplémentaire ; tous les badges
+         natifs et les diagnostics de V1.5.21 restent inchangés. */
+      .fan-aerien,.exch-col svg.exch-aerien{display:none}
+      :host([data-layout-style="aerien"]){
+        --aerien-border:color-mix(in srgb,var(--line) 58%,transparent);
+        --aerien-panel:color-mix(in srgb,var(--bg) 96%,var(--blue) 4%);
+        --aerien-inner:color-mix(in srgb,var(--bg) 92%,var(--blue) 8%);
+        --aerien-tube:color-mix(in srgb,var(--pipe) 74%,var(--bg) 26%);
+      }
+      :host([data-layout-style="aerien"]) ha-card{
+        background:var(--bg);border:0;box-shadow:none}
+      :host([data-layout-style="aerien"]) .wrap{padding:12px 14px 14px}
+      :host([data-layout-style="aerien"]) .schematic{
+        grid-template-columns:minmax(166px,1.06fr) 33px minmax(205px,.94fr) 55px minmax(330px,1.52fr);
+        grid-template-rows:repeat(3,minmax(122px,auto));gap:10px 0}
+      :host([data-layout-style="aerien"]) .machine,
+      :host([data-layout-style="aerien"]) .pac,
+      :host([data-layout-style="aerien"]) .output-card{
+        background:var(--aerien-panel);border:1px solid var(--aerien-border);
+        border-radius:21px;box-shadow:0 3px 13px color-mix(in srgb,var(--text) 5%,transparent)}
+      :host([data-layout-style="aerien"]) .machine,
+      :host([data-layout-style="aerien"]) .pac{
+        min-height:385px;padding:17px 16px;gap:11px}
+      :host([data-layout-style="aerien"]) .mini-head{
+        text-transform:none;letter-spacing:0;color:var(--text);
+        font-size:clamp(13px,1.2vw,17px);font-weight:740;line-height:1.35}
+      :host([data-layout-style="aerien"]) .machine .machine-art{
+        flex:1;min-height:135px;padding:8px 0}
+      :host([data-layout-style="aerien"]) .fan-shell{
+        width:min(100%,185px);aspect-ratio:1.125/1;
+        border:none;border-radius:0;background:transparent;
+        box-shadow:none;overflow:visible}
+      :host([data-layout-style="aerien"]) .fan-shell:after{content:none}
+      :host([data-layout-style="aerien"]) .fan-shell.running{
+        border:0;box-shadow:none}
+      :host([data-layout-style="aerien"]) .fan-svg:not(.fan-aerien){display:none}
+      :host([data-layout-style="aerien"]) .fan-svg.fan-aerien{
+        display:block;width:100%;height:100%;color:var(--fan-stroke);overflow:visible}
+      :host([data-layout-style="aerien"]) .fan-aerien .unit-case{
+        fill:var(--aerien-inner);stroke:var(--fan-edge);stroke-width:2}
+      :host([data-layout-style="aerien"]) .fan-aerien .fan-ring{
+        fill:none;stroke:var(--fan-stroke);stroke-width:2.2}
+      :host([data-layout-style="aerien"]) .fan-aerien .fan-inner{
+        fill:color-mix(in srgb,var(--fan-bg) 70%,var(--bg) 30%);stroke:var(--fan-edge);stroke-width:1}
+      :host([data-layout-style="aerien"]) .fan-aerien .fan-hub{
+        fill:var(--bg);stroke:var(--fan-stroke);stroke-width:2}
+      :host([data-layout-style="aerien"]) .fan-aerien .unit-feet{
+        fill:none;stroke:var(--fan-edge);stroke-width:3;stroke-linejoin:round}
+      :host([data-layout-style="aerien"]) .fan-aerien .blades{
+        transform-box:view-box;transform-origin:90px 77px}
+      :host([data-layout-style="aerien"]) .machine-stat{
+        padding-top:9px;border-top:1px solid var(--aerien-border)}
+      :host([data-layout-style="aerien"]) .mod-bar{
+        height:9px;background:var(--soft2)}
+      :host([data-layout-style="aerien"]) .mod-bar>i{
+        background:linear-gradient(90deg,#23bfb0,#36d5a6);
+        transition:width .6s ease-out}
+      :host([data-layout-style="aerien"]) .pac-art{min-height:130px;gap:8px}
+      :host([data-layout-style="aerien"]) .exchanger{gap:12px}
+      :host([data-layout-style="aerien"]) .exch-col svg:not(.exch-aerien){display:none}
+      :host([data-layout-style="aerien"]) .exch-col svg.exch-aerien{
+        display:block;width:69px;max-width:100%;height:92px;
+        fill:none;stroke:currentColor;stroke-width:4.5;
+        filter:none;opacity:.94}
+      :host([data-layout-style="aerien"]) .exch-col .exch-aerien .exch-frame{
+        fill:var(--aerien-inner);stroke:currentColor;
+        stroke-width:1.8;stroke-opacity:.62}
+      :host([data-layout-style="aerien"]) .exch-col .exch-aerien .exch-tube{
+        fill:none;stroke:currentColor;stroke-width:4.7;
+        stroke-linejoin:round;stroke-linecap:round}
+      :host([data-layout-style="aerien"]) .exch-caption{font-size:11px}
+      :host([data-layout-style="aerien"]) .pac-metrics{
+        border:1px solid var(--aerien-border);border-radius:13px;
+        background:var(--aerien-inner);padding:12px;gap:11px}
+      :host([data-layout-style="aerien"]) .pac-bottom{
+        font-size:10px;line-height:1.35}
+      :host([data-layout-style="aerien"]) .outs{
+        grid-template-rows:repeat(3,minmax(122px,auto));gap:10px}
+      :host([data-layout-style="aerien"]) .output-card{
+        min-height:122px;padding:12px 14px;gap:8px;border-left:1px solid var(--aerien-border)}
+      :host([data-layout-style="aerien"]) .out-title{
+        font-size:14px;font-weight:730}
+      :host([data-layout-style="aerien"]) .out-values>div strong{font-size:19px}
+      :host([data-layout-style="aerien"]) .out-foot .chip{
+        border:0;background:var(--aerien-inner);
+        font-size:10px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+      :host([data-layout-style="aerien"]) .state-dot.heat,
+      :host([data-layout-style="aerien"]) .state-dot.cool{
+        box-shadow:none;animation:aerienSignal 2.8s ease-in-out infinite}
+      :host([data-layout-style="aerien"]) .state-dot.electric{
+        background:var(--amber);animation:aerienSignal 2.8s ease-in-out infinite}
+      @keyframes aerienSignal{
+        0%,100%{opacity:1}50%{opacity:.52}
+      }
+      :host([data-layout-style="aerien"]) .linksvg path.track{
+        stroke:var(--aerien-tube);stroke-width:5;opacity:.8}
+      :host([data-layout-style="aerien"]) .linksvg path.live{
+        stroke-width:2.5;stroke-dasharray:5 15;
+        animation:flow 2.25s linear infinite}
+      :host([data-layout-style="aerien"]) details{
+        border:1px solid var(--aerien-border);border-radius:15px;
+        padding:12px 15px;margin-top:9px;background:var(--aerien-panel)}
+      :host([data-layout-style="aerien"]) details.alarm-details{
+        padding:12px 15px}
+      :host([data-layout-style="aerien"]) .diag-group,
+      :host([data-layout-style="aerien"]) .alerts{
+        background:var(--aerien-inner);border-color:var(--aerien-border)}
+      /* Paysage imposé : conserver une largeur suffisante pour les trois badges. */
+      :host([data-layout-style="aerien"][data-orientation="landscape"]) .schematic{
+        display:grid;grid-template-columns:minmax(175px,1.06fr) 32px minmax(210px,.94fr) 58px minmax(360px,1.52fr);
+        min-width:900px;grid-template-rows:repeat(3,minmax(122px,auto))}
+      /* Auto : les largeurs sont déterminées par la largeur du conteneur Lovelace. */
+      @container (min-width:801px) and (max-width:1100px){
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .schematic{
+          grid-template-columns:minmax(130px,.9fr) 22px minmax(165px,1fr) 28px minmax(240px,1.5fr)}
+        :host([data-layout-style="aerien"]) .machine,
+        :host([data-layout-style="aerien"]) .pac{padding:12px 10px}
+      }
+      /* Portrait forcé ou automatique : aucun faux collecteur sur les cartes. */
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .schematic{
+        display:flex;flex-direction:column;gap:0;min-width:0}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .machine,
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .pac{
+        min-height:0;padding:13px}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outs{
+        display:flex;flex-direction:column;gap:10px;padding:0;margin:0}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .output-card{
+        min-height:106px;overflow:hidden}
+      @container (max-width:800px){
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .schematic{
+          display:flex;flex-direction:column;gap:0;min-width:0}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .machine,
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .pac{
+          min-height:0;padding:13px}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outs{
+          display:flex;flex-direction:column;gap:10px;padding:0;margin:0}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .output-card{
+          min-height:106px;overflow:hidden}
+      }
+      :host([data-layout-style="aerien"]) .output-card:before,
+      :host([data-layout-style="aerien"]) .output-card:after,
+      :host([data-layout-style="aerien"]) .outs:before{
+        content:none!important;display:none!important}
+      :host([data-animate-flows="false"]) .state-dot.heat,
+      :host([data-animate-flows="false"]) .state-dot.cool,
+      :host([data-animate-flows="false"]) .state-dot.electric{
+        animation:none!important}
+      @media(prefers-reduced-motion:reduce){
+        :host([data-layout-style="aerien"]) .state-dot,
+        :host([data-layout-style="aerien"]) .mod-bar>i{animation:none!important;transition:none!important}
+      }
     </style>
     <ha-card><div class="wrap">
       <!-- Bandeau supprimé ; mode saisonnier présenté dans le module PAC. -->
@@ -845,7 +998,20 @@ class PacSynoptiqueCard extends HTMLElement {
               <ellipse cx="60" cy="35" rx="14" ry="27" transform="rotate(90 60 60)"/>
               <ellipse cx="60" cy="35" rx="14" ry="27" transform="rotate(180 60 60)"/>
               <ellipse cx="60" cy="35" rx="14" ry="27" transform="rotate(270 60 60)"/>
-            </g><circle cx="60" cy="60" r="11" fill="var(--soft2)" stroke="var(--fan-stroke)" stroke-width="2"/></svg></div></div>
+            </g><circle cx="60" cy="60" r="11" fill="var(--soft2)" stroke="var(--fan-stroke)" stroke-width="2"/></svg>
+            <svg class="fan-svg fan-aerien" viewBox="0 0 180 160" role="presentation" aria-hidden="true">
+              <rect class="unit-case" x="24" y="12" width="132" height="133" rx="12"/>
+              <circle class="fan-ring" cx="90" cy="77" r="53"/>
+              <circle class="fan-inner" cx="90" cy="77" r="48"/>
+              <g class="blades" fill="var(--fan-stroke)">
+                <path d="M90 77 C77 59 73 36 88 31 C108 27 111 52 90 77Z"/>
+                <path d="M90 77 C77 59 73 36 88 31 C108 27 111 52 90 77Z" transform="rotate(90 90 77)"/>
+                <path d="M90 77 C77 59 73 36 88 31 C108 27 111 52 90 77Z" transform="rotate(180 90 77)"/>
+                <path d="M90 77 C77 59 73 36 88 31 C108 27 111 52 90 77Z" transform="rotate(270 90 77)"/>
+              </g>
+              <circle class="fan-hub" cx="90" cy="77" r="9"/>
+              <path class="unit-feet" d="M37 145V150H55V145 M126 145V150H144V145"/>
+            </svg></div></div>
           <div><div class="field-title">Air extérieur</div><div class="big-value">${html(air)}</div></div>
           <div class="machine-stat"><div class="field-title">Compresseur</div><div>${chip(compressorText,compressionTone==='active'?'positive':'dim')}</div></div>
           <div class="machine-stat"><div class="field-title">Modulation du compresseur</div><div class="big-value">${html(formatted(gauge,'%'))}</div>
@@ -858,8 +1024,14 @@ class PacSynoptiqueCard extends HTMLElement {
           <div class="pac-head-status">${chip(modeText,mode==='heat'?'heat':mode==='cool'?'cool':'dim')}
           ${chip(clean(this._v('pacState')||'État PAC indisponible',36),compressor===true?'positive':'dim')}</div>
           <div class="pac-art"><div class="exchanger ${exchangerRunning?'running':'standby'}" aria-label="Représentation symbolique des échanges thermiques, animation lorsque le compresseur fonctionne">
-            <div class="exch-col ${mode==='cool'?'hot':''}"><svg viewBox="0 0 78 100" aria-hidden="true"><path d="M5 6H64Q74 6 74 16V22Q74 31 64 31H15Q5 31 5 41V46Q5 54 15 54H64Q74 54 74 64V69Q74 77 64 77H15Q5 77 5 88V95"/></svg><span class="exch-caption">${mode==='cool'?'Échange chaud':mode==='heat'?'Échange froid':'Côté extérieur'}</span></div>
-            <div class="exch-col ${mode==='cool'?'':'hot'}"><svg viewBox="0 0 78 100" aria-hidden="true"><path d="M5 6H64Q74 6 74 16V22Q74 31 64 31H15Q5 31 5 41V46Q5 54 15 54H64Q74 54 74 64V69Q74 77 64 77H15Q5 77 5 88V95"/></svg><span class="exch-caption">${mode==='cool'?'Échange froid':mode==='heat'?'Échange chaud':'Côté intérieur'}</span></div>
+            <div class="exch-col ${mode==='cool'?'hot':''}"><svg viewBox="0 0 78 100" aria-hidden="true"><path d="M5 6H64Q74 6 74 16V22Q74 31 64 31H15Q5 31 5 41V46Q5 54 15 54H64Q74 54 74 64V69Q74 77 64 77H15Q5 77 5 88V95"/></svg><svg class="exch-aerien" viewBox="0 0 78 100" aria-hidden="true">
+              <rect class="exch-frame" x="7" y="4" width="64" height="92" rx="10"/>
+              <path class="exch-tube" d="M17 20H56Q63 20 63 27Q63 34 56 34H24Q16 34 16 42Q16 49 24 49H55Q63 49 63 57Q63 64 55 64H24Q16 64 16 72Q16 79 24 79H61"/>
+            </svg><span class="exch-caption">${mode==='cool'?'Échange chaud':mode==='heat'?'Échange froid':'Côté extérieur'}</span></div>
+            <div class="exch-col ${mode==='cool'?'':'hot'}"><svg viewBox="0 0 78 100" aria-hidden="true"><path d="M5 6H64Q74 6 74 16V22Q74 31 64 31H15Q5 31 5 41V46Q5 54 15 54H64Q74 54 74 64V69Q74 77 64 77H15Q5 77 5 88V95"/></svg><svg class="exch-aerien" viewBox="0 0 78 100" aria-hidden="true">
+              <rect class="exch-frame" x="7" y="4" width="64" height="92" rx="10"/>
+              <path class="exch-tube" d="M17 20H56Q63 20 63 27Q63 34 56 34H24Q16 34 16 42Q16 49 24 49H55Q63 49 63 57Q63 64 55 64H24Q16 64 16 72Q16 79 24 79H61"/>
+            </svg><span class="exch-caption">${mode==='cool'?'Échange froid':mode==='heat'?'Échange chaud':'Côté intérieur'}</span></div>
           </div></div>
           <div class="pac-metrics">
             <div><span>Départ PAC</span><strong>${html(temp(this._v('flow')))}</strong></div>
@@ -1001,8 +1173,9 @@ class PacSynoptiqueCardEditor extends HTMLElement {
           <select id="pac-layout-choice">
             <option value="clean"${selectedLayout==='clean'?' selected':''}>Épurée — traits horizontaux discrets, sans liaisons en portrait</option>
             <option value="classic"${selectedLayout==='classic'?' selected':''}>Classique — tuyauterie schématique</option>
+            <option value="aerien"${selectedLayout==='aerien'?' selected':''}>Aérien — dessin simplifié et cartes légères</option>
           </select>
-          <div class="hint">En disposition étroite, la version épurée affiche des cartes indépendantes. Les raccordements ne représentent pas un schéma hydraulique certifié.</div>
+          <div class="hint">Aérien : ventilateur de face et échangeurs assortis, raccordements fins. Classique et Épurée restent disponibles. Les liaisons ne sont pas un schéma hydraulique certifié.</div>
         </div>
         <div class="field">
           <label class="toggle" for="pac-show-links">

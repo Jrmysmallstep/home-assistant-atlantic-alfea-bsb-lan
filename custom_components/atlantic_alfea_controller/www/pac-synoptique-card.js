@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.1 (intégration V1.5.23) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.2 (intégration V1.5.24) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.23
+ * Inclus dans atlantic_alfea_controller 1.5.24
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -956,11 +956,14 @@ class PacSynoptiqueCard extends HTMLElement {
       @keyframes aerienSignal{
         0%,100%{opacity:1}50%{opacity:.52}
       }
+      /* Aérien v2.9.2 : tuyauterie renforcée (sans modifier les autres thèmes). */
       :host([data-layout-style="aerien"]) .linksvg path.track{
-        stroke:var(--aerien-tube);stroke-width:5;opacity:.8}
+        stroke:var(--aerien-tube);stroke-width:8;opacity:.9}
       :host([data-layout-style="aerien"]) .linksvg path.live{
-        stroke-width:2.5;stroke-dasharray:5 15;
+        stroke-width:4;stroke-dasharray:8 15;
         animation:flow 2.25s linear infinite}
+      :host([data-layout-style="aerien"]) .v3v-symbol .port{stroke-width:9}
+      :host([data-layout-style="aerien"]) .v3v-symbol .route{stroke-width:6}
       :host([data-layout-style="aerien"]) details{
         border:1px solid var(--aerien-border);border-radius:15px;
         padding:12px 15px;margin-top:9px;background:var(--aerien-panel)}

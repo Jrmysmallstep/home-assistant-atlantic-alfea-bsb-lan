@@ -40,6 +40,20 @@ version publiée demeure V1.5.22 jusqu'à validation et publication.**
 
 
 
+## Préversion V1.5.25b4 — tuyauterie homogène (synoptique V2.9.5)
+
+Suite à une capture du raccordement de la vanne 3 voies Q3,
+le thème **Aérien** applique désormais une épaisseur visible de
+**10 px** aux conduites SVG, aux raccords gris de Q3 et aux chemins
+colorés actifs. La propriété SVG `vector-effect: non-scaling-stroke`
+empêche l'étirement des frises SVG de déformer les diamètres des
+segments horizontaux et verticaux. Les autres styles et les
+fonctionnalités BSB-LAN restent inchangés.
+
+**Tag à créer pour tester :** `v1.5.25b4` sur
+`feature/native-weekly-programs-readonly`, en préversion GitHub.
+Le rendu doit encore être vérifié sur le synoptique réel.
+
 ## Préversion V1.5.25b3 — comparaison des horaires (synoptique V2.9.4)
 
 Suite au premier essai réel de la bêta 1, la visualisation intégrée

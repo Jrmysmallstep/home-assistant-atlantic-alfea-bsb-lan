@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.5 (intégration V1.5.25 bêta 4) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.6 (intégration V1.5.25 bêta 5) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.25b4
+ * Inclus dans atlantic_alfea_controller 1.5.25b5
  * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
@@ -367,48 +367,63 @@ class PacSynoptiqueCard extends HTMLElement {
       const [h,m]=value.split(':').map(Number);
       return h<=24&&m<60&&(h<24||m===0)?h*60+m:null;
     };
+    const selected=programs.filter(p=>this._visiblePrograms.has(p.key));
     const checks=programs.map(p=>{
       const checked=this._visiblePrograms.has(p.key);
-      return `<label class="weekly-choice ${p.tone} ${checked?'active':''}">
+      const source=sources.get(p.key);
+      const status=source?.state||'Non chargé';
+      return `<label class="weekly-choice ${p.tone} ${checked?'active':''}"
+        title="${html(p.title)} · ${html(status)}">
         <input type="checkbox" data-program-choice="${p.key}" ${checked?'checked':''}
           aria-label="Afficher ${html(p.title)}">
         <span>${html(p.label)}</span></label>`;
     }).join('');
-    const axis=`<div class="weekly-axis"><span></span><div class="weekly-axis-ticks">
-      ${Array.from({length:9},(_,i)=>`<span>${i*3}h</span>`).join('')}</div></div>`;
-    const sections=programs.filter(p=>this._visiblePrograms.has(p.key)).map(p=>{
-      const source=sources.get(p.key);
-      const days=source?.attributes?.jours||{};
-      const rows=weekdays.map(([day,label])=>{
-        const ranges=Array.isArray(days[day])?days[day]:null;
+    // Une seule graduation commune à toutes les lignes et tous les jours.
+    const axis=`<div class="weekly-axis"><span></span><span></span>
+      <div class="weekly-axis-ticks">
+        ${Array.from({length:9},(_,i)=>`<span>${i*3}h</span>`).join('')}
+      </div></div>`;
+    const days=weekdays.map(([day,label])=>{
+      const lanes=selected.map(p=>{
+        const source=sources.get(p.key);
+        const ranges=Array.isArray(source?.attributes?.jours?.[day])
+          ? source.attributes.jours[day] : null;
         const bars=(ranges||[]).map(range=>{
           const start=time(range.debut),end=time(range.fin);
           if(start===null||end===null||end<=start)return '';
-          const startPct=(start/1440*100).toFixed(4);
-          const widthPct=((end-start)/1440*100).toFixed(4);
-          const text=html(range.debut+' – '+range.fin);
-          return `<span class="weekly-slot" style="left:${startPct}%;width:${widthPct}%"
-            title="${text}" aria-label="${text}"></span>`;
+          const left=(start/1440*100).toFixed(4);
+          const width=((end-start)/1440*100).toFixed(4);
+          const label=html(p.title+' : '+range.debut+' – '+range.fin);
+          return `<span class="weekly-slot" style="left:${left}%;width:${width}%"
+            title="${label}" aria-label="${label}"></span>`;
         }).join('');
-        const slots=ranges===null?'<span class="weekly-empty">Non chargé</span>':
+        const rangesText=ranges===null?'<span class="weekly-empty">Non chargé</span>':
           ranges.length===0?'<span class="weekly-empty">Aucune plage</span>':
-          ranges.map((range,i)=>`<span class="weekly-range"><b>${i+1}</b>
-            ${html(range.debut)} <span aria-hidden="true">→</span> ${html(range.fin)}</span>`).join('');
-        return `<div class="weekly-row"><span class="weekly-day">${label}</span>
-          <div class="weekly-day-body"><div class="weekly-track">${bars}</div>
-            <div class="weekly-times">${slots}</div></div></div>`;
+          ranges.map(range=>`<span class="weekly-range">
+            ${html(range.debut)}–${html(range.fin)}</span>`).join('');
+        return `<div class="weekly-lane ${p.tone}">
+          <span class="weekly-lane-label" title="${html(p.title)}">${html(p.label)}</span>
+          <div class="weekly-lane-body">
+            <div class="weekly-track">${bars}</div>
+            <div class="weekly-times">${rangesText}</div>
+          </div>
+        </div>`;
       }).join('');
-      const status=source?.state||'Capteur indisponible';
+      return `<div class="weekly-day-group">
+        <span class="weekly-day">${label}</span>
+        <div class="weekly-day-lanes">${lanes}</div>
+      </div>`;
+    }).join('');
+    const statuses=selected.map(p=>{
+      const source=sources.get(p.key);
       const date=source?.attributes?.derniere_importation;
       const error=source?.attributes?.erreur_derniere_lecture;
-      return `<section class="weekly-program ${p.tone}">
-        <div class="weekly-program-head"><strong>${html(p.title)}</strong>
-          <span class="weekly-status">${html(status)}</span></div>
-        ${axis}
-        <div class="weekly-rows">${rows}</div>
-        <div class="weekly-updated">${date?'Importé le '+html(date.replace('T',' ')):'Aucune importation'}</div>
-        ${error?`<p class="weekly-error">Dernière lecture : ${html(error)}</p>`:''}
-      </section>`;
+      return `<span class="weekly-state ${p.tone}" title="${date?'Importé le '+html(date.replace('T',' ')):'Aucune importation'}">
+        ${html(p.label)} : ${html(source?.state||'Non chargé')}${error?' ⚠':''}</span>`;
+    }).join('');
+    const errors=selected.map(p=>{
+      const error=sources.get(p.key)?.attributes?.erreur_derniere_lecture;
+      return error?`<p class="weekly-error">${html(p.label)} : ${html(error)}</p>`:'';
     }).join('');
     return this._diagGroup('Programmes horaires natifs · Lecture seule',
       `<div class="weekly-toolbar">
@@ -416,8 +431,10 @@ class PacSynoptiqueCard extends HTMLElement {
         <button type="button" class="weekly-refresh" data-weekly-refresh
           ${canRefresh?'':'disabled'}>${this._weeklyRefreshing?'Actualisation…':'↻ Actualiser'}</button>
       </div>
-      <div class="weekly-help">Sélectionne 1, 2 ou 3 programmes · chaque programme a sa propre frise.</div>
-      <div class="weekly-programs">${sections}</div>
+      <div class="weekly-states">${statuses}</div>
+      <div class="weekly-help">Même échelle 24 h pour chaque jour · une ligne par programme sélectionné.</div>
+      <div class="weekly-chart">${axis}<div class="weekly-days">${days}</div></div>
+      ${errors}
       ${this._weeklyRefreshError?`<p class="weekly-error">Actualisation : ${html(this._weeklyRefreshError)}</p>`:''}
       <p class="weekly-note">Horaires exacts lus sur la PAC · aucune modification de la programmation.</p>`);
   }
@@ -721,40 +738,50 @@ class PacSynoptiqueCard extends HTMLElement {
       .weekly-refresh{padding:9px 12px;border:1px solid var(--panel-line);border-radius:9px;
         background:var(--soft);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
       .weekly-refresh:disabled{opacity:.45;cursor:not-allowed}
-      .weekly-help{font-size:11px;color:var(--sub);margin-bottom:14px}
-      .weekly-programs{display:grid;gap:16px}
-      .weekly-program{min-width:0;--weekly-accent:var(--blue);padding:12px;
-        border:1px solid var(--panel-line);border-radius:10px}
-      .weekly-program.heat{--weekly-accent:var(--red)}
-      .weekly-program.floor{--weekly-accent:var(--blue)}
-      .weekly-program.water{--weekly-accent:var(--green)}
-      .weekly-program-head{display:flex;justify-content:space-between;align-items:center;
-        gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:12px}
-      .weekly-program-head strong{color:var(--weekly-accent)}
-      .weekly-status{font-size:11px;color:var(--sub)}
-      .weekly-axis,.weekly-row{display:grid;grid-template-columns:30px minmax(0,1fr);gap:7px}
-      .weekly-axis{margin:0 0 7px}
+      .weekly-states{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;margin:6px 0}
+      .weekly-state.heat{color:var(--red)}
+      .weekly-state.floor{color:var(--blue)}
+      .weekly-state.water{color:var(--green)}
+      .weekly-help{font-size:11px;color:var(--sub);margin-bottom:13px}
+      .weekly-chart{--weekly-day-width:34px;--weekly-label-width:48px;--weekly-gap:8px;min-width:0}
+      .weekly-axis{display:grid;grid-template-columns:var(--weekly-day-width) var(--weekly-label-width) minmax(0,1fr);
+        column-gap:var(--weekly-gap);margin:0 0 8px}
       .weekly-axis-ticks{display:flex;justify-content:space-between;
         font-size:10px;color:var(--sub);font-variant-numeric:tabular-nums}
-      .weekly-rows{display:grid;gap:9px}
-      .weekly-row{align-items:start}
+      .weekly-days{display:grid;gap:7px}
+      .weekly-day-group{display:grid;grid-template-columns:var(--weekly-day-width) minmax(0,1fr);
+        gap:var(--weekly-gap);align-items:start;border:1px solid var(--panel-line);
+        border-radius:9px;padding:9px 8px}
+      .weekly-day-group:nth-child(odd){background:var(--soft)}
       .weekly-day{font-size:11px;font-weight:700;padding-top:4px}
-      .weekly-day-body{min-width:0}
+      .weekly-day-lanes{display:grid;gap:8px;min-width:0}
+      .weekly-lane{display:grid;grid-template-columns:var(--weekly-label-width) minmax(0,1fr);
+        gap:var(--weekly-gap);align-items:start;min-width:0;--weekly-accent:var(--blue)}
+      .weekly-lane.heat{--weekly-accent:var(--red)}
+      .weekly-lane.floor{--weekly-accent:var(--blue)}
+      .weekly-lane.water{--weekly-accent:var(--green)}
+      .weekly-lane-label{font-size:11px;font-weight:700;color:var(--weekly-accent);
+        padding-top:4px;overflow-wrap:anywhere}
+      .weekly-lane-body{min-width:0}
       .weekly-track{height:18px;border:1px solid var(--panel-line);border-radius:5px;
         position:relative;overflow:hidden;background-color:var(--soft);
         background-image:linear-gradient(to right,var(--panel-line) 1px,transparent 1px);
         background-size:4.1666667% 100%}
       .weekly-slot{position:absolute;top:1px;bottom:1px;background:var(--weekly-accent);
         border-radius:3px;min-width:2px}
-      .weekly-times{display:flex;flex-wrap:wrap;gap:4px 7px;margin-top:5px;
-        font-size:11px;font-variant-numeric:tabular-nums;line-height:1.4}
-      .weekly-range{white-space:nowrap;padding:2px 5px;border-radius:5px;
-        border:1px solid var(--panel-line);color:var(--text)}
-      .weekly-range b{color:var(--weekly-accent);margin-right:4px}
+      .weekly-times{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:4px;
+        font-size:10px;font-variant-numeric:tabular-nums;line-height:1.45}
+      .weekly-range{white-space:nowrap;color:var(--text)}
       .weekly-empty{color:var(--sub)}
-      .weekly-updated{color:var(--sub);font-size:10px;margin-top:10px}
       .weekly-error{color:var(--warn-text);font-size:11px;overflow-wrap:anywhere}
       .weekly-note{color:var(--sub);font-size:10px;line-height:1.5;margin:12px 0 0}
+      @media(max-width:520px){
+        .weekly-chart{--weekly-day-width:28px;--weekly-label-width:38px;--weekly-gap:4px}
+        .weekly-day-group{padding:8px 4px}
+        .weekly-axis-ticks{font-size:9px}
+        .weekly-times{font-size:9px;gap:2px 5px}
+        .weekly-lane-label,.weekly-day{font-size:10px}
+      }
       .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
       .detail-row:last-child{border:0}.detail-row span{color:var(--sub);min-width:0}.detail-row strong{text-align:right;font-weight:700;max-width:58%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
       .detail-row strong.na{color:var(--muted)}

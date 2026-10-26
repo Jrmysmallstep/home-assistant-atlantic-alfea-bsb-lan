@@ -26,6 +26,11 @@ visuellement sur l'installation de référence le 26 octobre 2026.
   Si une entité 5731 existe malgré tout, sa valeur réelle prévaut sur l'option.
   Si ni 5731 ni la confirmation manuelle ne sont disponibles, le capteur
   V3V reste indisponible.
+- **V1.5.24 (correctif)** : le statut de commande 8820 est également écouté
+  directement sur `BSB-LAN/+/+/8820/status` : aucune entité MQTT-discovery
+  n'est nécessaire. L'attribut `source_commande` précise si l'information
+  vient d'une entité Home Assistant ou du MQTT direct. La confirmation
+  `q3_diverter_confirmed` reste indispensable en l'absence de 5731.
 - Le capteur historique **« ECS - Pompe »** est conservé pour la compatibilité
   des installations existantes ; dans le synoptique, sa sortie 8820 est
   présentée comme **Q3** ou **V3V** selon les données disponibles.

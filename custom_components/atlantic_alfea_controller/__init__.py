@@ -32,7 +32,12 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
                 "/alfea-synoptique/pac-synoptique-card.js",
                 str(Path(__file__).resolve().parent / "www" / "pac-synoptique-card.js"),
                 False,
-            )
+            ),
+            StaticPathConfig(
+                "/alfea-synoptique/pac-programmes-card.js",
+                str(Path(__file__).resolve().parent / "www" / "pac-programmes-card.js"),
+                False,
+            ),
         ]
     )
     return True

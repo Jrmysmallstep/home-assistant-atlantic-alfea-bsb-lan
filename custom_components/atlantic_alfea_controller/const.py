@@ -44,6 +44,7 @@ CONF_DHW_STATE: Final = "dhw_state"
 CONF_DHW_TEMPERATURE: Final = "dhw_temperature"
 CONF_DHW_ELECTRIC_HEATER: Final = "dhw_electric_heater"
 CONF_DHW_PUMP: Final = "dhw_pump"
+CONF_DHW_Q3_TYPE: Final = "dhw_q3_type"
 
 CONF_PAC_STATE: Final = "pac_state"
 CONF_COMPRESSOR_STATE: Final = "compressor_state"

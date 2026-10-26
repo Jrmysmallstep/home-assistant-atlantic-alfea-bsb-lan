@@ -357,7 +357,7 @@ class PacSynoptiqueCard extends HTMLElement {
     )]));
     const button=states.find(st=>st.entity_id.startsWith('button.') &&
       (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
-    const canRefresh=button && !['unavailable','unknown'].includes(button.state) && !this._weeklyRefreshing;
+    const canRefresh=button && button.state!=='unavailable' && !this._weeklyRefreshing;
     const weekdays=[
       ['lundi','Lun'],['mardi','Mar'],['mercredi','Mer'],['jeudi','Jeu'],
       ['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']
@@ -426,7 +426,7 @@ class PacSynoptiqueCard extends HTMLElement {
     const button=Object.values(this._hass?.states||{}).find(st=>
       st.entity_id.startsWith('button.') &&
       (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
-    if(!button||['unavailable','unknown'].includes(button.state))return;
+    if(!button||button.state==='unavailable')return;
     this._weeklyRefreshing=true;
     this._weeklyRefreshError=null;
     this._render();

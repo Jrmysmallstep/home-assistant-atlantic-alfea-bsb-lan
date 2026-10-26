@@ -359,7 +359,7 @@ class PacSynoptiqueCard extends HTMLElement {
       ['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']
     ];
     const time=value=>{
-      if(typeof value!=='string'||!/^\\d{2}:\\d{2}$/.test(value))return null;
+      if(typeof value!=='string'||!/^\d{2}:\d{2}$/.test(value))return null;
       const [h,m]=value.split(':').map(Number);
       return h<=24&&m<60&&(h<24||m===0)?h*60+m:null;
     };

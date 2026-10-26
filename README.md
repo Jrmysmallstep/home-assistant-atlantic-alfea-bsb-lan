@@ -40,6 +40,27 @@ version publiée demeure V1.5.22 jusqu'à validation et publication.**
 
 
 
+## Préversion V1.5.25b3 — comparaison des horaires (synoptique V2.9.4)
+
+Suite au premier essai réel de la bêta 1, la visualisation intégrée
+dans « Diagnostics et capteurs complémentaires » a été repensée :
+
+- **Cases à cocher RDC, Étage et ECS** : afficher un, deux ou trois
+  programmes simultanément (au moins un doit rester coché).
+- **Chaque programme possède ses propres sept frises horaires** ;
+  aucune superposition de circuits sur une même ligne.
+- Frises graduées de 0 h à 24 h, repères toutes les heures et
+  étiquettes toutes les 3 heures ; chaque créneau est aussi indiqué
+  avec ses heures et minutes exactes.
+- **Bouton « ↻ Actualiser » dans la même ligne que les cases à cocher**,
+  relié au bouton de lecture BSB-LAN déjà créé par l'intégration.
+- Trois couleurs pour distinguer chauffage RDC, étage et ECS.
+- La bêta 3 contient aussi le correctif de démarrage MQTT de la bêta 2.
+
+**Tag de préversion à publier :** `v1.5.25b3` depuis
+`feature/native-weekly-programs-readonly` (et non `main`).
+La bêta 1 déjà installée reste inchangée jusqu'à mise à jour via HACS.
+
 ## Correctif de préversion V1.5.25b2 — démarrage MQTT
 
 La bêta 1 pouvait échouer à l'initialisation avec

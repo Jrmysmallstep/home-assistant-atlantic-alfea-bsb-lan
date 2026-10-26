@@ -4,6 +4,32 @@ Intégration personnalisée Home Assistant pour piloter et surveiller une pompe 
 
 > Dernière version publiée : **1.5.22**
 
+## En préparation — V1.5.23 : V3V Q3 / synoptique
+
+Sur une Alféa équipée d'une **vanne de dérivation ECS Q3** (paramètre
+BSB-LAN **5731 = 2**), le paramètre **8820** correspond à la commande Q3 :
+**1 → A / ECS**, **0 → B / chauffage**. Ces deux états ont été contrôlés
+visuellement sur l'installation de référence le 26 octobre 2026.
+
+- Nouveau capteur **« V3V - Commande »** : état `ECS` ou `Chauffage`,
+  attribut `position_commandee` A/B. Il est **en lecture seule** et ne
+  constitue **pas un retour de position mécanique**.
+- La carte synoptique **V2.9.1** affiche le symbole hydraulique Q3 et la
+  branche sélectionnée. L'animation des flux exige en plus des états
+  de fonctionnement confirmés. Les mises en page portrait et Aérien sont prises
+  en charge ; le badge reste visible en présentation Épurée.
+- **Prérequis** : les paramètres **5731** et **8820** doivent être publiés
+  comme entités BSB-LAN dans Home Assistant (ou associés via la configuration
+  de l'intégration). Si la configuration Q3 est inconnue ou différente de 2,
+  la position V3V reste indisponible : aucune position n'est inventée.
+- Le capteur historique **« ECS - Pompe »** est conservé pour la compatibilité
+  des installations existantes ; dans le synoptique, sa sortie 8820 est
+  présentée comme **Q3** ou **V3V** selon les données disponibles.
+
+**Cette évolution est proposée en branche de développement ; la dernière
+version publiée demeure V1.5.22 jusqu'à validation et publication.**
+
+
 
 ## Synoptique Aérien (V1.5.22)
 

@@ -14,7 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_ids, pac_clock_datetime
-from .const import DOMAIN, MODE_COOL, MODE_HEAT
+from .const import CONF_Q3_DIVERTER_CONFIRMED, DOMAIN, MODE_COOL, MODE_HEAT
 from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
 
@@ -340,7 +340,8 @@ class AlfeaV3VCommandSensor(SensorEntity):
     """Read-only Q3 command, validated on a diverter-equipped Alféa.
 
     8820 is the Q3 activation signal, not a physical valve-position feedback.
-    Only expose A/B when BSB 5731 explicitly configures Q3 as a diverter.
+    Only expose A/B when BSB 5731 confirms Q3 as a diverter, or when
+    the user explicitly confirms that fixed configuration in options.
     """
 
     _attr_has_entity_name = True
@@ -362,12 +363,14 @@ class AlfeaV3VCommandSensor(SensorEntity):
 
     def _is_diverter(self) -> bool:
         raw = state_value(self.hass, self._configuration_source())
-        if raw is None:
-            return False
-        code, label = split_bsb_status(raw)
-        return code == 2 or raw.strip() == "2" or (
-            label is not None and "vanne de dérivation" in label.casefold()
-        )
+        if raw is not None:
+            # An actual 5731 reading always takes precedence over the manual
+            # declaration, especially if the hardware configuration changes.
+            code, label = split_bsb_status(raw)
+            return code == 2 or raw.strip() == "2" or (
+                label is not None and "vanne de dérivation" in label.casefold()
+            )
+        return self._entry.options.get(CONF_Q3_DIVERTER_CONFIRMED, False) is True
 
     @property
     def native_value(self) -> str | None:
@@ -384,6 +387,10 @@ class AlfeaV3VCommandSensor(SensorEntity):
         return {
             "position_commandee": "A" if state == "ECS" else "B" if state == "Chauffage" else None,
             "organe_q3": "Vanne de dérivation" if self._is_diverter() else "Non confirmé",
+            "configuration_confirmee_manuellement": (
+                state_value(self.hass, self._configuration_source()) is None
+                and self._entry.options.get(CONF_Q3_DIVERTER_CONFIRMED, False) is True
+            ),
             "parametre_configuration": 5731,
             "parametre_commande": 8820,
             "retour_position_mecanique": False,

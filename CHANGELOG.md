@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.22 — Style Aérien du synoptique
+
+- Troisième style graphique **Aérien** sélectionnable, styles Classique/Épurée inchangés.
+- Dessin COMP frontal et compact, sans côté ni logo ; quatre pales SVG identiques et centrées.
+- Échangeurs symboliques dans le même langage graphique, mouvement réduit.
+- Fond clair/sombre adaptatif ; panneaux et liaisons allégés ; raccordements et
+  couleurs animés uniquement à partir des activités confirmées.
+- Adaptation automatique au mobile et portrait sans branches superposées.
+- Les 65 entités, modes natifs, états BSB bruts, circulateurs, ECS, alarmes et
+  diagnostics restent présents. Aucun changement backend ni service PAC.
+
+
 ## 1.5.16 — Afficher les états BSB-LAN sans interprétation
 
 - Annule uniquement la transformation du badge des circuits en « Régime : Confort/Éco ».

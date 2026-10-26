@@ -69,6 +69,25 @@ validés. En cas d'erreur, le capteur affiche `Erreur` et conserve sa
 dernière importation horodatée pour diagnostic (elle ne doit pas être
 interprétée comme une lecture récente).
 
+### Visualisation intégrée dans le synoptique (V1.5.25)
+
+Dans **Diagnostics et capteurs complémentaires**, le synoptique comporte
+désormais un bloc **« Programmes horaires natifs · Lecture seule »** dans la
+**deuxième colonne**, à côté de « Circuits 1 & 2 / programmation ».
+
+Trois onglets **RDC / Étage / ECS** affichent chacun les sept jours de la
+semaine avec une frise 24 heures et les créneaux Confort programmés. Le
+programme ECS est bien inclus (paramètres 561 à 561.6).
+Les valeurs proviennent exclusivement des capteurs de l'importateur BSB-LAN,
+et sont actualisées lorsque le bouton de diagnostic
+**« Programmes natifs - Actualiser »** est pressé.
+Aucun changement de configuration de la carte synoptique existante n'est
+nécessaire. Si les capteurs ne sont pas encore chargés, le panneau indique
+« Non chargé » au lieu d'inventer des horaires.
+
+La carte autonome ci-dessous reste facultative : le synoptique contient
+désormais la visualisation demandée.
+
 ### Carte hebdomadaire Lovelace (prototype)
 
 L'intégration expose également une carte `pac-programmes-card` :

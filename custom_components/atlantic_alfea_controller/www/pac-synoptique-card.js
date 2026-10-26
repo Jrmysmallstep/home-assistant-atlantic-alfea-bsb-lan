@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.0 (intégration V1.5.22) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.1 (intégration V1.5.23) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.22
+ * Inclus dans atlantic_alfea_controller 1.5.23
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -56,6 +56,7 @@ const FIELDS = {
   ecsComfort:      ['sensor','ECS - T. Confort'],
   ecsEco:          ['sensor','ECS - T. Éco'],
   ecsPump:         ['binary_sensor','ECS - Pompe'],
+  v3v:             ['sensor','V3V - Commande'],
   ecsElectric:     ['binary_sensor','ECS - Appoint électrique'],
   compressorHours: ['sensor','COMP - Heures de fonctionnement'],
   compressorStarts:['sensor','COMP - Nombre de démarrages'],
@@ -338,6 +339,14 @@ class PacSynoptiqueCard extends HTMLElement {
     const mode=this._resolveMode();
     const compressor=this._b('compressor');
     const c1=this._circuit(1),c2=this._circuit(2),ecs=this._ecs();
+    // Q3 sélectionne ECS ou le collecteur chauffage, jamais directement C1/C2.
+    const v3vRaw=this._v('v3v');
+    const v3v=v3vRaw==='ECS'?'ecs':v3vRaw==='Chauffage'?'heat':null;
+    const v3vTone=v3v==='ecs'?'heat':v3v==='heat'?(mode==='cool'?'cool':'positive'):'dim';
+    const v3vLabel=v3v==='ecs'?'V3V A · ECS':v3v==='heat'?'V3V B · Chauffage':'V3V indisponible';
+    const c1Flow=c1.active && v3v!=='ecs';
+    const c2Flow=c2.active && v3v!=='ecs';
+    const ecsViaPac=ecs.viaPac && v3v!=='heat';
     const defrost=this._b('defrost');
     // Les animations illustrent une activité confirmée, pas la vitesse réelle du ventilateur.
     const exchangerRunning=compressor===true && (mode==='heat'||mode==='cool');
@@ -372,10 +381,10 @@ class PacSynoptiqueCard extends HTMLElement {
     ].filter(Boolean).join(' · ');
     const statesCount=Object.values(this._ids||{}).filter(id=>!!id && !!this._hass?.states[id]).length;
     const activeCount=(c1.active?1:0)+(c2.active?1:0)+(ecs.viaPac?1:0);
-    const ecsText=ecs.viaPac ? 'Chauffe par PAC' : ecs.withElectric?'Appoint électrique' :
+    const ecsText=ecsViaPac ? 'Chauffe par PAC' : ecs.withElectric?'Appoint électrique' :
       norm(ecs.production).includes('demande')?'Demande en attente':
       norm(ecs.production)==='inactive'?'En attente':'État non confirmé';
-    const ecsTone=ecs.viaPac?'heat':ecs.withElectric?'electric':'idle';
+    const ecsTone=ecsViaPac?'heat':ecs.withElectric?'electric':'idle';
     const gauge=nvalue(this._v('modulation'));
     const air=temp(this._v('outdoor'));
     const pacDelta= nvalue(this._v('flow'))!==null && nvalue(this._v('returnTemp'))!==null ?
@@ -528,6 +537,23 @@ class PacSynoptiqueCard extends HTMLElement {
       .pac-metrics>div span{display:block;color:var(--sub);font-size:11px}.pac-metrics>div strong{display:block;font-size:17px;margin-top:5px;font-variant-numeric:tabular-nums}
       .pac-bottom{margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5}
       .linksvg{width:100%;height:100%;display:block;overflow:visible}
+      /* Q3 : symbole hydraulique trois voies, lecture seule. */
+      .outlink{position:relative}
+      .v3v-symbol{position:absolute;left:33%;top:50%;transform:translate(-50%,-50%);
+        width:54px;height:54px;pointer-events:none;z-index:2;color:var(--text)}
+      .v3v-symbol svg{display:block;width:100%;height:100%;overflow:visible}
+      .v3v-symbol .port{fill:none;stroke:var(--pipe);stroke-width:7;stroke-linecap:round}
+      .v3v-symbol .body{fill:var(--surface);stroke:var(--panel-line);stroke-width:2}
+      .v3v-symbol .route{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+        opacity:0;transition:opacity .4s ease}
+      .v3v-symbol .route-heat{stroke:var(--red)}
+      .v3v-symbol.cooling .route-heat{stroke:var(--blue)}
+      .v3v-symbol .route-ecs{stroke:var(--red)}
+      .v3v-symbol.to-heat .route-heat,.v3v-symbol.to-ecs .route-ecs{opacity:1}
+      .v3v-symbol .valve-core{fill:var(--text);opacity:.65}
+      .v3v-symbol.unknown .body{opacity:.6}
+      :host([data-animate-flows="false"]) .v3v-symbol .route{transition:none}
+      :host([data-show-links="false"]) .v3v-symbol{display:none}
       .vertical-link{display:none}
       .linksvg path.track{stroke:var(--pipe);stroke-width:9;fill:none;stroke-linejoin:round;stroke-linecap:round}
       .linksvg path.live{stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:13 15;animation:flow 1.15s linear infinite}
@@ -603,6 +629,7 @@ class PacSynoptiqueCard extends HTMLElement {
         .machine .machine-stat{padding-top:5px}
         .pac-art{min-height:85px}
         .inlink,.outlink{display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+        .outlink .v3v-symbol{left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotate(90deg)}
         .inlink .horizontal-link,.outlink .horizontal-link{display:none}
         .inlink .vertical-link,.outlink .vertical-link{display:block;height:100%;width:100%;overflow:hidden}
         .outs{display:flex;flex-direction:column;gap:10px;position:relative;padding-left:22px;margin-top:0}
@@ -1022,7 +1049,8 @@ class PacSynoptiqueCard extends HTMLElement {
           ${compressor===true?'<path class="live active" d="M0 220 H100"/>':''}</svg><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${compressor===true?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
         <section class="pac"><div class="mini-head">PAC · Module hydraulique</div>
           <div class="pac-head-status">${chip(modeText,mode==='heat'?'heat':mode==='cool'?'cool':'dim')}
-          ${chip(clean(this._v('pacState')||'État PAC indisponible',36),compressor===true?'positive':'dim')}</div>
+          ${chip(clean(this._v('pacState')||'État PAC indisponible',36),compressor===true?'positive':'dim')}
+          ${chip(v3vLabel,v3vTone)}</div>
           <div class="pac-art"><div class="exchanger ${exchangerRunning?'running':'standby'}" aria-label="Représentation symbolique des échanges thermiques, animation lorsque le compresseur fonctionne">
             <div class="exch-col ${mode==='cool'?'hot':''}"><svg viewBox="0 0 78 100" aria-hidden="true"><path d="M5 6H64Q74 6 74 16V22Q74 31 64 31H15Q5 31 5 41V46Q5 54 15 54H64Q74 54 74 64V69Q74 77 64 77H15Q5 77 5 88V95"/></svg><svg class="exch-aerien" viewBox="0 0 78 100" aria-hidden="true">
               <rect class="exch-frame" x="7" y="4" width="64" height="92" rx="10"/>
@@ -1042,9 +1070,19 @@ class PacSynoptiqueCard extends HTMLElement {
         </section>
         <div class="outlink" aria-hidden="true"><svg class="linksvg horizontal-link" viewBox="0 0 100 440" preserveAspectRatio="none">
           <path class="track" d="M0 220H33V72H100 M33 220H100 M33 220V368H100"/>
-          ${c1.active?`<path class="live ${branchTone(c1)}" d="M0 220H33V72H100"/>`:''}
-          ${c2.active?`<path class="live ${branchTone(c2)}" d="M0 220H33H100"/>`:''}
-          ${ecs.viaPac?'<path class="live heat" d="M0 220H33V368H100"/>':''}</svg><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${(c1.active||c2.active||ecs.viaPac)?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
+          ${c1Flow?`<path class="live ${branchTone(c1)}" d="M0 220H33V72H100"/>`:''}
+          ${c2Flow?`<path class="live ${branchTone(c2)}" d="M0 220H33H100"/>`:''}
+          ${ecsViaPac?'<path class="live heat" d="M0 220H33V368H100"/>':''}</svg>
+          <div class="v3v-symbol ${v3v==='ecs'?'to-ecs':v3v==='heat'?'to-heat':'unknown'} ${mode==='cool'?'cooling':''}"
+            role="img" aria-label="${html(v3vLabel)}" title="${html(v3vLabel)}">
+            <svg viewBox="0 0 60 60" aria-hidden="true">
+              <path class="port" d="M3 30H30 M30 3V57"/>
+              <circle class="body" cx="30" cy="30" r="18"/>
+              <path class="route route-heat" d="M14 30H30V13"/>
+              <path class="route route-ecs" d="M14 30H30V47"/>
+              <circle class="valve-core" cx="30" cy="30" r="3"/>
+            </svg>
+          </div><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${(c1Flow||c2Flow||ecsViaPac)?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
         <div class="outs">${circHtml(c1)}${circHtml(c2)}
           <section class="output-card ${ecsTone}" aria-label="Eau chaude sanitaire">
             <div class="out-top"><div class="tank-mini" aria-hidden="true"></div><div class="out-head">
@@ -1052,7 +1090,7 @@ class PacSynoptiqueCard extends HTMLElement {
               <span class="state-dot ${ecsTone}"></span></div>
             <div class="out-values"><div><span>Température ballon</span><strong>${html(temp(ecs.tempBallon))}</strong></div>
               <div><span>Consigne affichée</span><strong>${html(temp(ecs.target))}</strong></div></div>
-            <div class="out-foot">${chip(ecs.pump===true?'Pompe active':ecs.pump===false?'Pompe arrêtée':'Pompe inconnue',ecs.pump===true?'positive':'dim')}
+            <div class="out-foot">${chip(v3v?v3vLabel:ecs.pump===true?'Sortie Q3 active':ecs.pump===false?'Sortie Q3 inactive':'Sortie Q3 inconnue',v3v?v3vTone:ecs.pump===true?'positive':'dim')}
               ${ecs.withElectric?chip('Appoint électrique actif','warning'):''}</div>
           </section>
         </div>

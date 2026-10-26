@@ -1,8 +1,8 @@
 /**
- * PAC Synoptique v2.9.3 (intégration V1.5.25 bêta 2) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.4 (intégration V1.5.25 bêta 2) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
  * Inclus dans atlantic_alfea_controller 1.5.25b2
- * Aucun appel de service Home Assistant, aucune commande à la PAC.
+ * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
 'use strict';
@@ -181,7 +181,9 @@ class PacSynoptiqueCard extends HTMLElement {
     this._lastDiscovery=0;
     this._resolvedThemeMode=null;
     this._lastThemeName=null;
-    this._programTab='chauffage_c1';
+    this._visiblePrograms=new Set(['chauffage_c1','chauffage_c2','ecs']);
+    this._weeklyRefreshing=false;
+    this._weeklyRefreshError=null;
   }
   static getStubConfig() {return {theme_mode:'auto',layout_orientation:'auto',show_diagnostics:true};}
   static getConfigElement() {return document.createElement(EDITOR_TAG);}
@@ -343,17 +345,19 @@ class PacSynoptiqueCard extends HTMLElement {
   _diagGroup(title,body){return `<section class="diag-group"><h4>${html(title)}</h4>${body}</section>`;}
   _nativeWeeklyPrograms(){
     const programs=[
-      {key:'chauffage_c1',base:'501',label:'RDC',title:'Chauffage RDC'},
-      {key:'chauffage_c2',base:'521',label:'Étage',title:'Chauffage étage'},
-      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire'}
+      {key:'chauffage_c1',base:'501',label:'RDC',title:'Chauffage RDC',tone:'heat'},
+      {key:'chauffage_c2',base:'521',label:'Étage',title:'Chauffage étage',tone:'floor'},
+      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire',tone:'water'}
     ];
-    const selected=programs.find(p=>p.key===this._programTab)||programs[0];
-    const source=Object.values(this._hass?.states||{}).find(st=>
+    const states=Object.values(this._hass?.states||{});
+    const sources=new Map(programs.map(p=>[p.key,states.find(st=>
       st.entity_id.startsWith('sensor.') &&
       st.attributes?.source==='BSB-LAN JSON /JQ' &&
-      String(st.attributes?.parametre_lundi)===selected.base
-    );
-    const days=source?.attributes?.jours||{};
+      String(st.attributes?.parametre_lundi)===p.base
+    )]));
+    const button=states.find(st=>st.entity_id.startsWith('button.') &&
+      (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
+    const canRefresh=button && !['unavailable','unknown'].includes(button.state) && !this._weeklyRefreshing;
     const weekdays=[
       ['lundi','Lun'],['mardi','Mar'],['mercredi','Mer'],['jeudi','Jeu'],
       ['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']
@@ -363,32 +367,77 @@ class PacSynoptiqueCard extends HTMLElement {
       const [h,m]=value.split(':').map(Number);
       return h<=24&&m<60&&(h<24||m===0)?h*60+m:null;
     };
-    const tabs=programs.map(p=>`<button type="button" class="weekly-tab ${p.key===selected.key?'active':''}"
-      data-program-tab="${p.key}" aria-pressed="${p.key===selected.key}">${html(p.label)}</button>`).join('');
-    const rows=weekdays.map(([day,label])=>{
-      const ranges=Array.isArray(days[day])?days[day]:null;
-      const bars=(ranges||[]).map(range=>{
-        const start=time(range.debut),end=time(range.fin);
-        if(start===null||end===null||end<=start)return '';
-        return `<i class="weekly-slot" style="left:${(start/1440*100).toFixed(3)}%;width:${((end-start)/1440*100).toFixed(3)}%"></i>`;
-      }).join('');
-      const labelText=ranges===null?'Non chargé':ranges.length===0?'Aucune plage':
-        ranges.map(r=>`${html(r.debut)}–${html(r.fin)}`).join(' · ');
-      return `<div class="weekly-row"><span class="weekly-day">${label}</span>
-        <div class="weekly-day-body"><div class="weekly-track">${bars}</div>
-          <div class="weekly-times">${labelText}</div></div></div>`;
+    const checks=programs.map(p=>{
+      const checked=this._visiblePrograms.has(p.key);
+      return `<label class="weekly-choice ${p.tone} ${checked?'active':''}">
+        <input type="checkbox" data-program-choice="${p.key}" ${checked?'checked':''}
+          aria-label="Afficher ${html(p.title)}">
+        <span>${html(p.label)}</span></label>`;
     }).join('');
-    const status=source?.state||'Capteur non disponible';
-    const date=source?.attributes?.derniere_importation;
-    const error=source?.attributes?.erreur_derniere_lecture;
+    const axis=`<div class="weekly-axis"><span></span><div class="weekly-axis-ticks">
+      ${Array.from({length:9},(_,i)=>`<span>${i*3}h</span>`).join('')}</div></div>`;
+    const sections=programs.filter(p=>this._visiblePrograms.has(p.key)).map(p=>{
+      const source=sources.get(p.key);
+      const days=source?.attributes?.jours||{};
+      const rows=weekdays.map(([day,label])=>{
+        const ranges=Array.isArray(days[day])?days[day]:null;
+        const bars=(ranges||[]).map(range=>{
+          const start=time(range.debut),end=time(range.fin);
+          if(start===null||end===null||end<=start)return '';
+          const startPct=(start/1440*100).toFixed(4);
+          const widthPct=((end-start)/1440*100).toFixed(4);
+          const text=html(range.debut+' – '+range.fin);
+          return `<span class="weekly-slot" style="left:${startPct}%;width:${widthPct}%"
+            title="${text}" aria-label="${text}"></span>`;
+        }).join('');
+        const slots=ranges===null?'<span class="weekly-empty">Non chargé</span>':
+          ranges.length===0?'<span class="weekly-empty">Aucune plage</span>':
+          ranges.map((range,i)=>`<span class="weekly-range"><b>${i+1}</b>
+            ${html(range.debut)} <span aria-hidden="true">→</span> ${html(range.fin)}</span>`).join('');
+        return `<div class="weekly-row"><span class="weekly-day">${label}</span>
+          <div class="weekly-day-body"><div class="weekly-track">${bars}</div>
+            <div class="weekly-times">${slots}</div></div></div>`;
+      }).join('');
+      const status=source?.state||'Capteur indisponible';
+      const date=source?.attributes?.derniere_importation;
+      const error=source?.attributes?.erreur_derniere_lecture;
+      return `<section class="weekly-program ${p.tone}">
+        <div class="weekly-program-head"><strong>${html(p.title)}</strong>
+          <span class="weekly-status">${html(status)}</span></div>
+        ${axis}
+        <div class="weekly-rows">${rows}</div>
+        <div class="weekly-updated">${date?'Importé le '+html(date.replace('T',' ')):'Aucune importation'}</div>
+        ${error?`<p class="weekly-error">Dernière lecture : ${html(error)}</p>`:''}
+      </section>`;
+    }).join('');
     return this._diagGroup('Programmes horaires natifs · Lecture seule',
-      `<div class="weekly-tabs">${tabs}</div>
-      <div class="weekly-info">${html(selected.title)} · ${html(status)}
-        ${date?`<span> · Importé le ${html(date.replace('T',' '))}</span>`:''}</div>
-      <div class="weekly-scale"><span></span><div><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div></div>
-      <div class="weekly-rows">${rows}</div>
-      ${error?`<p class="weekly-error">Dernière lecture : ${html(error)}</p>`:''}
-      <p class="weekly-note">Horaires lus sur la PAC · actualisation via le bouton « Programmes natifs - Actualiser ».</p>`);
+      `<div class="weekly-toolbar">
+        <div class="weekly-choices" role="group" aria-label="Programmes à comparer">${checks}</div>
+        <button type="button" class="weekly-refresh" data-weekly-refresh
+          ${canRefresh?'':'disabled'}>${this._weeklyRefreshing?'Actualisation…':'↻ Actualiser'}</button>
+      </div>
+      <div class="weekly-help">Sélectionne 1, 2 ou 3 programmes · chaque programme a sa propre frise.</div>
+      <div class="weekly-programs">${sections}</div>
+      ${this._weeklyRefreshError?`<p class="weekly-error">Actualisation : ${html(this._weeklyRefreshError)}</p>`:''}
+      <p class="weekly-note">Horaires exacts lus sur la PAC · aucune modification de la programmation.</p>`);
+  }
+  async _refreshWeeklyPrograms(){
+    if(this._weeklyRefreshing)return;
+    const button=Object.values(this._hass?.states||{}).find(st=>
+      st.entity_id.startsWith('button.') &&
+      (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
+    if(!button||['unavailable','unknown'].includes(button.state))return;
+    this._weeklyRefreshing=true;
+    this._weeklyRefreshError=null;
+    this._render();
+    try {
+      await this._hass.callService('button','press',{entity_id:button.entity_id});
+    } catch(err) {
+      this._weeklyRefreshError=String(err?.message||err);
+    } finally {
+      this._weeklyRefreshing=false;
+      this._render();
+    }
   }
   _render(){
     // États de déploiement persistants malgré le rafraîchissement des entités HA.
@@ -662,22 +711,48 @@ class PacSynoptiqueCard extends HTMLElement {
       .diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .diag-group{min-width:0;background:var(--surface);padding:13px;border-radius:12px;border:1px solid var(--panel-line)}
       .diag-group h4{margin:0 0 10px;font-size:12px;color:var(--text)}
-      .weekly-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
-      .weekly-tab{border:1px solid var(--panel-line);border-radius:8px;padding:7px 12px;
-        background:transparent;color:var(--text);font-size:11px;cursor:pointer}
-      .weekly-tab.active{background:var(--soft);border-color:var(--blue);font-weight:700}
-      .weekly-info{font-size:11px;color:var(--sub);margin-bottom:10px;line-height:1.5}
-      .weekly-scale,.weekly-row{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px}
-      .weekly-scale{margin:0 0 6px}
-      .weekly-scale>div{display:flex;justify-content:space-between;font-size:9px;color:var(--sub)}
-      .weekly-rows{display:grid;gap:7px}
+      .weekly-toolbar{display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:7px}
+      .weekly-choices{display:flex;gap:6px;flex-wrap:wrap}
+      .weekly-choice{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;
+        border:1px solid var(--panel-line);border-radius:9px;cursor:pointer;
+        font-size:12px;color:var(--text);user-select:none}
+      .weekly-choice.active{background:var(--soft);border-color:var(--blue);font-weight:700}
+      .weekly-choice input{accent-color:var(--blue);width:15px;height:15px;margin:0;cursor:pointer}
+      .weekly-refresh{padding:9px 12px;border:1px solid var(--panel-line);border-radius:9px;
+        background:var(--soft);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+      .weekly-refresh:disabled{opacity:.45;cursor:not-allowed}
+      .weekly-help{font-size:11px;color:var(--sub);margin-bottom:14px}
+      .weekly-programs{display:grid;gap:16px}
+      .weekly-program{min-width:0;--weekly-accent:var(--blue);padding:12px;
+        border:1px solid var(--panel-line);border-radius:10px}
+      .weekly-program.heat{--weekly-accent:var(--red)}
+      .weekly-program.floor{--weekly-accent:var(--blue)}
+      .weekly-program.water{--weekly-accent:var(--green)}
+      .weekly-program-head{display:flex;justify-content:space-between;align-items:center;
+        gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:12px}
+      .weekly-program-head strong{color:var(--weekly-accent)}
+      .weekly-status{font-size:11px;color:var(--sub)}
+      .weekly-axis,.weekly-row{display:grid;grid-template-columns:30px minmax(0,1fr);gap:7px}
+      .weekly-axis{margin:0 0 7px}
+      .weekly-axis-ticks{display:flex;justify-content:space-between;
+        font-size:10px;color:var(--sub);font-variant-numeric:tabular-nums}
+      .weekly-rows{display:grid;gap:9px}
       .weekly-row{align-items:start}
-      .weekly-day{font-size:11px;font-weight:650;padding-top:1px}
+      .weekly-day{font-size:11px;font-weight:700;padding-top:4px}
       .weekly-day-body{min-width:0}
-      .weekly-track{height:11px;border-radius:4px;position:relative;overflow:hidden;
-        background:var(--soft)}
-      .weekly-slot{position:absolute;top:0;bottom:0;background:var(--blue);border-radius:3px}
-      .weekly-times{font-size:10px;color:var(--sub);margin-top:3px;line-height:1.45;overflow-wrap:anywhere}
+      .weekly-track{height:18px;border:1px solid var(--panel-line);border-radius:5px;
+        position:relative;overflow:hidden;background-color:var(--soft);
+        background-image:repeating-linear-gradient(to right,
+          var(--panel-line) 0,var(--panel-line) 1px,transparent 1px,transparent calc(100% / 24))}
+      .weekly-slot{position:absolute;top:1px;bottom:1px;background:var(--weekly-accent);
+        border-radius:3px;min-width:2px}
+      .weekly-times{display:flex;flex-wrap:wrap;gap:4px 7px;margin-top:5px;
+        font-size:11px;font-variant-numeric:tabular-nums;line-height:1.4}
+      .weekly-range{white-space:nowrap;padding:2px 5px;border-radius:5px;
+        border:1px solid var(--panel-line);color:var(--text)}
+      .weekly-range b{color:var(--weekly-accent);margin-right:4px}
+      .weekly-empty{color:var(--sub)}
+      .weekly-updated{color:var(--sub);font-size:10px;margin-top:10px}
       .weekly-error{color:var(--warn-text);font-size:11px;overflow-wrap:anywhere}
       .weekly-note{color:var(--sub);font-size:10px;line-height:1.5;margin:12px 0 0}
       .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
@@ -1202,12 +1277,17 @@ class PacSynoptiqueCard extends HTMLElement {
       </details>`:''}
 
     </div></ha-card>`;
-    this.shadowRoot.querySelectorAll('[data-program-tab]').forEach(button=>{
-      button.addEventListener('click',()=>{
-        this._programTab=button.dataset.programTab;
+    this.shadowRoot.querySelectorAll('[data-program-choice]').forEach(input=>{
+      input.addEventListener('change',()=>{
+        const key=input.dataset.programChoice;
+        if(input.checked)this._visiblePrograms.add(key);
+        else if(this._visiblePrograms.size>1)this._visiblePrograms.delete(key);
         this._render();
       });
     });
+    this.shadowRoot.querySelector('[data-weekly-refresh]')?.addEventListener(
+      'click',()=>this._refreshWeeklyPrograms()
+    );
   }
 }
 /**

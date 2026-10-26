@@ -15,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_ids, pac_clock_datetime
 from .const import DOMAIN, MODE_COOL, MODE_HEAT
-from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_value, track_entities
+from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
 
 
@@ -276,6 +276,7 @@ async def async_setup_entry(
         if entry.data.get(desc.key)
     ]
     entities.extend(AlfeaCircuitSeasonStateSensor(hass, entry, circuit) for circuit in (1, 2))
+    entities.append(AlfeaV3VCommandSensor(hass, entry))
     entities.extend(AlfeaCircuitProgramDiagnosticSensor(hass, entry, item) for item in _CIRCUIT_PROGRAM_DIAGNOSTICS)
     entities.extend(AlfeaProgrammedSetpointSensor(hass, entry, item) for item in _PROGRAMMED_SETPOINTS)
     if isinstance(entry.runtime_data, AlfeaRuntimeMonitor):
@@ -333,6 +334,67 @@ class AlfeaProxySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source], self.async_write_ha_state))
+
+
+class AlfeaV3VCommandSensor(SensorEntity):
+    """Read-only Q3 command, validated on a diverter-equipped Alféa.
+
+    8820 is the Q3 activation signal, not a physical valve-position feedback.
+    Only expose A/B when BSB 5731 explicitly configures Q3 as a diverter.
+    """
+
+    _attr_has_entity_name = True
+    _attr_name = "V3V - Commande"
+    _attr_icon = "mdi:valve"
+    _attr_state_class = None
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_v3v_command"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _configuration_source(self) -> str | None:
+        return source_entity(self.hass, self._entry, "dhw_q3_type", 5731)
+
+    def _command_source(self) -> str | None:
+        return source_entity(self.hass, self._entry, "dhw_pump", 8820)
+
+    def _is_diverter(self) -> bool:
+        raw = state_value(self.hass, self._configuration_source())
+        if raw is None:
+            return False
+        code, label = split_bsb_status(raw)
+        return code == 2 or raw.strip() == "2" or (
+            label is not None and "vanne de dérivation" in label.casefold()
+        )
+
+    @property
+    def native_value(self) -> str | None:
+        if not self._is_diverter():
+            return None
+        command = state_is_on(self.hass, self._command_source())
+        if command is None:
+            return None
+        return "ECS" if command else "Chauffage"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        state = self.native_value
+        return {
+            "position_commandee": "A" if state == "ECS" else "B" if state == "Chauffage" else None,
+            "organe_q3": "Vanne de dérivation" if self._is_diverter() else "Non confirmé",
+            "parametre_configuration": 5731,
+            "parametre_commande": 8820,
+            "retour_position_mecanique": False,
+        }
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(track_entities(
+            self.hass,
+            [self._configuration_source(), self._command_source()],
+            self.async_write_ha_state,
+        ))
 
 
 class AlfeaCircuitProgramDiagnosticSensor(SensorEntity):

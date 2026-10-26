@@ -18,10 +18,14 @@ visuellement sur l'installation de référence le 26 octobre 2026.
   branche sélectionnée. L'animation des flux exige en plus des états
   de fonctionnement confirmés. Les mises en page portrait et Aérien sont prises
   en charge ; le badge reste visible en présentation Épurée.
-- **Prérequis** : les paramètres **5731** et **8820** doivent être publiés
-  comme entités BSB-LAN dans Home Assistant (ou associés via la configuration
-  de l'intégration). Si la configuration Q3 est inconnue ou différente de 2,
-  la position V3V reste indisponible : aucune position n'est inventée.
+- **Prérequis** : seul le paramètre **8820** doit être publié en continu dans
+  Home Assistant. Pour éviter de dépasser la limite des 40 paramètres MQTT,
+  activer **Configurer → Options → « Q3 est une vanne 3 voies ECS
+  (5731 = 2) »** après avoir vérifié cette valeur une fois sur la PAC.
+  Le paramètre 5731 n'a donc **pas besoin** d'être ajouté à la liste MQTT.
+  Si une entité 5731 existe malgré tout, sa valeur réelle prévaut sur l'option.
+  Si ni 5731 ni la confirmation manuelle ne sont disponibles, le capteur
+  V3V reste indisponible.
 - Le capteur historique **« ECS - Pompe »** est conservé pour la compatibilité
   des installations existantes ; dans le synoptique, sa sortie 8820 est
   présentée comme **Q3** ou **V3V** selon les données disponibles.

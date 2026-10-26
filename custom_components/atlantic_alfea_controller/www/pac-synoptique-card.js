@@ -980,6 +980,21 @@ class PacSynoptiqueCard extends HTMLElement {
         :host([data-layout-style="aerien"]) .machine,
         :host([data-layout-style="aerien"]) .pac{padding:12px 10px}
       }
+      /* Le symbole reste lisible en portrait Aérien, sans branche fictive. */
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink{
+        display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink .horizontal-link{display:none}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink .vertical-link{display:block}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink .v3v-symbol{
+        left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotate(90deg)}
+      @container (max-width:800px){
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink{
+          display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink .horizontal-link{display:none}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink .vertical-link{display:block}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink .v3v-symbol{
+          left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotate(90deg)}
+      }
       /* Portrait forcé ou automatique : aucun faux collecteur sur les cartes. */
       :host([data-layout-style="aerien"][data-orientation="portrait"]) .schematic{
         display:flex;flex-direction:column;gap:0;min-width:0}

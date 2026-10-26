@@ -26,6 +26,7 @@ from .const import (
     CONF_DEFROST,
     CONF_DHW_ELECTRIC_HEATER,
     CONF_DHW_PUMP,
+    CONF_DHW_Q3_TYPE,
     CONF_DHW_MODE,
     CONF_DHW_NOMINAL_SETPOINT,
     CONF_DHW_REDUCED_SETPOINT,
@@ -112,6 +113,8 @@ STATE_PARAMETERS: Final[tuple[ParameterSpec, ...]] = (
     ParameterSpec(CONF_DEFROST, 7728, False, ("binary_sensor", "sensor", "text"), GROUP_STATES),
     ParameterSpec(CONF_DHW_ELECTRIC_HEATER, 8821, False, ("binary_sensor", "sensor", "text"), GROUP_STATES),
     ParameterSpec(CONF_DHW_PUMP, 8820, False, ("binary_sensor", "sensor", "text"), GROUP_STATES),
+    # Q3 configuration: 2 means three-way DHW diverter rather than a charging pump.
+    ParameterSpec(CONF_DHW_Q3_TYPE, 5731, False, ("sensor", "text", "select", "number"), GROUP_STATES),
 )
 
 MEASUREMENT_PARAMETERS: Final[tuple[ParameterSpec, ...]] = (

@@ -40,6 +40,44 @@ version publiée demeure V1.5.22 jusqu'à validation et publication.**
 
 
 
+## En développement — importation des programmes natifs (V1.5.25)
+
+La branche `feature/native-weekly-programs-readonly` ajoute une première
+importation **en lecture seule**, indépendante des 40 paramètres MQTT.
+Aucune programmation n'est écrite et Home Assistant ne remplace pas
+le régulateur de la PAC.
+
+**Prérequis** : dans les options de l'intégration, renseigner
+**Adresse BSB-LAN JSON** avec l'adresse HTTP(S) de BSB-LAN.
+Le bouton de diagnostic **« Programmes natifs - Actualiser »** lance
+explicitement 21 lectures JSON `/JQ=...` (espacées de 200 ms).
+Aucune lecture automatique au démarrage ni publication MQTT supplémentaire.
+
+Trois capteurs de diagnostic présentent ensuite un état `Chargé`, `Erreur`
+ou `Non chargé`, ainsi que les plages par jour dans l'attribut `jours` :
+
+| Capteur | Lundi | Mardi à dimanche |
+| --- | --- | --- |
+| Programme natif - Chauffage RDC | 501 | 501.1 à 501.6 |
+| Programme natif - Chauffage étage | 521 | 521.1 à 521.6 |
+| Programme natif - Eau chaude sanitaire | 561 | 561.1 à 561.6 |
+
+Chaque jour comporte jusqu'à trois créneaux `debut` / `fin` ;
+`##:##-##:##` représente une plage inactive.
+Une semaine est mise à jour uniquement si ses sept jours ont été lus et
+validés. En cas d'erreur, le capteur affiche `Erreur` et conserve sa
+dernière importation horodatée pour diagnostic (elle ne doit pas être
+interprétée comme une lecture récente).
+
+Les programmes de **rafraîchissement C1/C2** seront intégrés après validation
+de leur lecture via l'API JSON : les trames bus identifiées ne constituent pas
+encore des paramètres `/JQ` confirmés.
+
+**Essais requis avant publication** : vérifier les 21 réponses réelles de
+BSB-LAN, la correspondance des jours, l'absence de commandes /JS et les
+capteurs dans Outils de développement → États. Cette branche n'est pas une
+release HACS.
+
 ## Synoptique Aérien (V1.5.22)
 
 Une nouvelle présentation **Aérien** est incluse dans la carte Lovelace,

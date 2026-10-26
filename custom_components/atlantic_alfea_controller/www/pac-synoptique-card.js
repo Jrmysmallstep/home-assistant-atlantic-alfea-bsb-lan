@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.2 (intégration V1.5.24) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.3 (intégration V1.5.25) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.24
+ * Inclus dans atlantic_alfea_controller 1.5.25
  * Aucun appel de service Home Assistant, aucune commande à la PAC.
  */
 (() => {
@@ -181,6 +181,7 @@ class PacSynoptiqueCard extends HTMLElement {
     this._lastDiscovery=0;
     this._resolvedThemeMode=null;
     this._lastThemeName=null;
+    this._programTab='chauffage_c1';
   }
   static getStubConfig() {return {theme_mode:'auto',layout_orientation:'auto',show_diagnostics:true};}
   static getConfigElement() {return document.createElement(EDITOR_TAG);}
@@ -234,7 +235,15 @@ class PacSynoptiqueCard extends HTMLElement {
         st?.attributes?.temperature,st?.attributes?.production,st?.attributes?.regime_consigne,
         st?.attributes?.phase_apprentissage,st?.attributes?.pompe_ecs,st?.attributes?.appoint_electrique];
     }));
-    if(changed||signature!==this._lastSignature){this._lastSignature=signature;this._render();}
+    // Les programmes natifs sont des capteurs à la demande : inclure leur
+    // état et leur horodatage dans la signature pour rafraîchir le synoptique.
+    const programSignature=JSON.stringify(Object.values(hass.states).filter(st=>
+      st.entity_id.startsWith('sensor.') &&
+      st.attributes?.source==='BSB-LAN JSON /JQ' &&
+      ['501','521','561'].includes(String(st.attributes?.parametre_lundi))
+    ).map(st=>[st.entity_id,st.state,st.attributes?.derniere_importation,st.attributes?.erreur_derniere_lecture]));
+    const fullSignature=signature+'|'+programSignature;
+    if(changed||fullSignature!==this._lastSignature){this._lastSignature=fullSignature;this._render();}
   }
   _discover(){
     const states=this._hass?.states||{};
@@ -332,6 +341,55 @@ class PacSynoptiqueCard extends HTMLElement {
     return `<div class="detail-row"><span>${html(label)}</span><strong class="${!st||raw==null?'na':''}">${html(value)}</strong></div>`;
   }
   _diagGroup(title,body){return `<section class="diag-group"><h4>${html(title)}</h4>${body}</section>`;}
+  _nativeWeeklyPrograms(){
+    const programs=[
+      {key:'chauffage_c1',base:'501',label:'RDC',title:'Chauffage RDC'},
+      {key:'chauffage_c2',base:'521',label:'Étage',title:'Chauffage étage'},
+      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire'}
+    ];
+    const selected=programs.find(p=>p.key===this._programTab)||programs[0];
+    const source=Object.values(this._hass?.states||{}).find(st=>
+      st.entity_id.startsWith('sensor.') &&
+      st.attributes?.source==='BSB-LAN JSON /JQ' &&
+      String(st.attributes?.parametre_lundi)===selected.base
+    );
+    const days=source?.attributes?.jours||{};
+    const weekdays=[
+      ['lundi','Lun'],['mardi','Mar'],['mercredi','Mer'],['jeudi','Jeu'],
+      ['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']
+    ];
+    const time=value=>{
+      if(typeof value!=='string'||!/^\\d{2}:\\d{2}$/.test(value))return null;
+      const [h,m]=value.split(':').map(Number);
+      return h<=24&&m<60&&(h<24||m===0)?h*60+m:null;
+    };
+    const tabs=programs.map(p=>`<button type="button" class="weekly-tab ${p.key===selected.key?'active':''}"
+      data-program-tab="${p.key}" aria-pressed="${p.key===selected.key}">${html(p.label)}</button>`).join('');
+    const rows=weekdays.map(([day,label])=>{
+      const ranges=Array.isArray(days[day])?days[day]:null;
+      const bars=(ranges||[]).map(range=>{
+        const start=time(range.debut),end=time(range.fin);
+        if(start===null||end===null||end<=start)return '';
+        return `<i class="weekly-slot" style="left:${(start/1440*100).toFixed(3)}%;width:${((end-start)/1440*100).toFixed(3)}%"></i>`;
+      }).join('');
+      const labelText=ranges===null?'Non chargé':ranges.length===0?'Aucune plage':
+        ranges.map(r=>`${html(r.debut)}–${html(r.fin)}`).join(' · ');
+      return `<div class="weekly-row"><span class="weekly-day">${label}</span>
+        <div class="weekly-day-body"><div class="weekly-track">${bars}</div>
+          <div class="weekly-times">${labelText}</div></div></div>`;
+    }).join('');
+    const status=source?.state||'Capteur non disponible';
+    const date=source?.attributes?.derniere_importation;
+    const error=source?.attributes?.erreur_derniere_lecture;
+    return this._diagGroup('Programmes horaires natifs · Lecture seule',
+      `<div class="weekly-tabs">${tabs}</div>
+      <div class="weekly-info">${html(selected.title)} · ${html(status)}
+        ${date?`<span> · Importé le ${html(date.replace('T',' '))}</span>`:''}</div>
+      <div class="weekly-scale"><span></span><div><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>24h</span></div></div>
+      <div class="weekly-rows">${rows}</div>
+      ${error?`<p class="weekly-error">Dernière lecture : ${html(error)}</p>`:''}
+      <p class="weekly-note">Horaires lus sur la PAC · actualisation via le bouton « Programmes natifs - Actualiser ».</p>`);
+  }
   _render(){
     // États de déploiement persistants malgré le rafraîchissement des entités HA.
     const prevAlarms=this.shadowRoot.querySelector('details[data-panel="alarms"]')?.open ?? false;
@@ -428,6 +486,7 @@ class PacSynoptiqueCard extends HTMLElement {
         [`C${i} — Rafraîchissement Confort`,`coolComfort${i}`,'°C'],[`C${i} — Rafraîchissement Éco`,`coolEco${i}`,'°C']
       ])
     ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
+    const diagWeekly=this._nativeWeeklyPrograms();
     this.shadowRoot.innerHTML=`<style>
       /* En auto, les palettes proviennent des variables du thème Home Assistant. */
       :host {display:block;
@@ -603,6 +662,24 @@ class PacSynoptiqueCard extends HTMLElement {
       .diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .diag-group{min-width:0;background:var(--surface);padding:13px;border-radius:12px;border:1px solid var(--panel-line)}
       .diag-group h4{margin:0 0 10px;font-size:12px;color:var(--text)}
+      .weekly-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+      .weekly-tab{border:1px solid var(--panel-line);border-radius:8px;padding:7px 12px;
+        background:transparent;color:var(--text);font-size:11px;cursor:pointer}
+      .weekly-tab.active{background:var(--soft);border-color:var(--blue);font-weight:700}
+      .weekly-info{font-size:11px;color:var(--sub);margin-bottom:10px;line-height:1.5}
+      .weekly-scale,.weekly-row{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px}
+      .weekly-scale{margin:0 0 6px}
+      .weekly-scale>div{display:flex;justify-content:space-between;font-size:9px;color:var(--sub)}
+      .weekly-rows{display:grid;gap:7px}
+      .weekly-row{align-items:start}
+      .weekly-day{font-size:11px;font-weight:650;padding-top:1px}
+      .weekly-day-body{min-width:0}
+      .weekly-track{height:11px;border-radius:4px;position:relative;overflow:hidden;
+        background:var(--soft)}
+      .weekly-slot{position:absolute;top:0;bottom:0;background:var(--blue);border-radius:3px}
+      .weekly-times{font-size:10px;color:var(--sub);margin-top:3px;line-height:1.45;overflow-wrap:anywhere}
+      .weekly-error{color:var(--warn-text);font-size:11px;overflow-wrap:anywhere}
+      .weekly-note{color:var(--sub);font-size:10px;line-height:1.5;margin:12px 0 0}
       .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
       .detail-row:last-child{border:0}.detail-row span{color:var(--sub);min-width:0}.detail-row strong{text-align:right;font-weight:700;max-width:58%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
       .detail-row strong.na{color:var(--muted)}
@@ -1121,10 +1198,16 @@ class PacSynoptiqueCard extends HTMLElement {
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>
         <p class="details-note">Lecture seule. « — » signifie : entité absente, désactivée, inconnue ou non publiée par BSB-LAN. Les températures de départ cibles des circuits ne sont pas des mesures.</p>
-        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}</div>
+        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}${diagWeekly}</div>
       </details>`:''}
 
     </div></ha-card>`;
+    this.shadowRoot.querySelectorAll('[data-program-tab]').forEach(button=>{
+      button.addEventListener('click',()=>{
+        this._programTab=button.dataset.programTab;
+        this._render();
+      });
+    });
   }
 }
 /**

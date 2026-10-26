@@ -17,6 +17,7 @@ from .const import DOMAIN, PLATFORMS
 from .discovery import discover_mapping
 from .runtime import AlfeaRuntimeMonitor
 from .polling import async_start_data_polling
+from .weekly_programs import WeeklyProgramImporter
 
 
 async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
@@ -149,6 +150,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass, "BSB-LAN/+/+/8820/status", _handle_v3v, qos=0
     )
     entry.async_on_unload(unsub_v3v)
+
+    # Import des programmes à la demande, indépendant des 40 publications MQTT.
+    # Aucun appel HTTP au démarrage : seul le bouton explicite déclenche /JQ.
+    programs = hass.data.setdefault(DOMAIN, {}).setdefault("weekly_programs", {})
+    programs[entry.entry_id] = WeeklyProgramImporter(
+        hass, entry.entry_id, entry.options.get("bsb_base_url", "")
+    )
+    entry.async_on_unload(lambda: programs.pop(entry.entry_id, None))
 
     monitor = AlfeaRuntimeMonitor(hass, entry)
     entry.runtime_data = monitor

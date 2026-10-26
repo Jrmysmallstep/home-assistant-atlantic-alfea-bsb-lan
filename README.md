@@ -40,6 +40,24 @@ version publiée demeure V1.5.22 jusqu'à validation et publication.**
 
 
 
+## Correctif de préversion V1.5.25b2 — démarrage MQTT
+
+La bêta 1 pouvait échouer à l'initialisation avec
+`mqtt_not_setup_cannot_subscribe` si les abonnements directs aux
+circulateurs (9031/8760) et à la vanne Q3 (8820) étaient créés avant que
+Home Assistant ait initialisé MQTT.
+
+La bêta 2 déclare `mqtt` comme dépendance à initialiser avant
+l'intégration lorsqu'elle est disponible (`after_dependencies`),
+diffère les abonnements jusqu'au chargement du composant, et laisse
+les autres entités ainsi que l'importation HTTP des programmes se
+charger même si MQTT est temporairement absent. Aucune publication
+MQTT ni commande BSB supplémentaire.
+
+**Préversion à publier :** tag `v1.5.25b2` sur la branche
+`feature/native-weekly-programs-readonly`, avec l'option GitHub
+« Set as a pre-release ». Ne pas réutiliser le tag bêta 1.
+
 ## En développement — importation des programmes natifs (V1.5.25)
 
 La branche `feature/native-weekly-programs-readonly` ajoute une première

@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.5.25 — Programmes horaires natifs et synoptique V2.9.7
+
+Version stable regroupant les améliorations validées pendant les six bêtas V1.5.25 :
+
+- **Lecture seule des programmes natifs** chauffage RDC/étage (501 et 521),
+  eau chaude sanitaire (561) et rafraîchissement RDC/étage
+  (11000–11006 et 11010–11016, validés sur PAC réelle).
+- **Cinq capteurs de diagnostic** avec créneaux des sept jours, dernière
+  importation, statut et erreurs ; actualisation manuelle via HTTP JSON /JQ,
+  sans consommer de nouveaux paramètres MQTT.
+- **Synoptique V2.9.7** : graphique hebdomadaire regroupé par jour,
+  comparaison des cinq programmes avec cases à cocher et plages précises.
+- **Carte autonome** `pac-programmes-card` : cinq onglets et bouton d'actualisation.
+- **Démarrage MQTT résilient** et améliorations de la disponibilité.
+- **Vanne de dérivation ECS Q3 / V3V** : représentation et diagnostic
+  fondés sur la commande 8820, avec garde-fous de configuration.
+- **Style Aérien** : conduites et raccords Q3 corrigés, sans régression
+  voulue sur les autres styles.
+- Les programmes et dérogations PAC restent inchangés :
+  **aucune écriture de programme horaire** n'est introduite.
+
+
 ## 1.5.22 — Style Aérien du synoptique
 
 - Troisième style graphique **Aérien** sélectionnable, styles Classique/Épurée inchangés.

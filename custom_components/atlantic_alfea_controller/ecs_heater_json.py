@@ -19,6 +19,19 @@ _LOGGER = logging.getLogger(__name__)
 _INTERVAL = timedelta(seconds=60)
 
 
+def parse_heater_response(data: object) -> bool | None:
+    """Accept only a successful 8821 ONOFF response with value 0 or 1."""
+    item = data.get("8821") if isinstance(data, dict) else None
+    if not isinstance(item, dict):
+        return None
+    if str(item.get("error")) != "0" or item.get("dataType_name") != "ONOFF":
+        return None
+    value = str(item.get("value", "")).strip()
+    if value not in ("0", "1"):
+        return None
+    return value == "1"
+
+
 def heater_state(hass: HomeAssistant, entry: ConfigEntry) -> bool | None:
     """Return JSON state when configured; otherwise use the existing HA source."""
     url = str(entry.options.get("bsb_base_url", "")).strip()
@@ -54,12 +67,8 @@ async def async_start_heater_polling(hass: HomeAssistant, entry: ConfigEntry):
                     async with session.get(f"{url}/JQ=8821") as response:
                         response.raise_for_status()
                         data = await response.json(content_type=None)
-                item = data.get("8821") if isinstance(data, dict) else None
-                if isinstance(item, dict) and str(item.get("error")) == "0" and item.get("dataType_name") == "ONOFF":
-                    raw = str(item.get("value", "")).strip()
-                    if raw in ("0", "1"):
-                        value = raw == "1"
-            except (Exception) as err:
+                value = parse_heater_response(data)
+            except Exception as err:
                 _LOGGER.warning("Lecture JSON BSB-LAN 8821 impossible : %s", err)
             if not active:
                 return

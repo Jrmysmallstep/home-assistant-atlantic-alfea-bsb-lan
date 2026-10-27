@@ -20,11 +20,14 @@ from .regime_api import valid_base_url
 
 _LOGGER = logging.getLogger(__name__)
 WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
-# Monday is the base parameter; the remaining days have suffixes .1 through .6.
+# Heating/ECS: Monday is the base, following days use .1 through .6.
+# Cooling: custom BSB-LAN parameters 11000-11006 / 11010-11016 are consecutive.
 PROGRAMS = {
     "chauffage_c1": ("Chauffage RDC", "mdi:calendar-clock", "501"),
     "chauffage_c2": ("Chauffage étage", "mdi:calendar-clock", "521"),
     "ecs": ("Eau chaude sanitaire", "mdi:calendar-clock", "561"),
+    "rafraichissement_c1": ("Rafraîchissement RDC", "mdi:snowflake-clock", "11000"),
+    "rafraichissement_c2": ("Rafraîchissement étage", "mdi:snowflake-clock", "11010"),
 }
 _SLOT_RE = re.compile(r"(\d{2}:\d{2}|##:##)-(\d{2}:\d{2}|##:##)")
 
@@ -69,7 +72,7 @@ class ProgramSnapshot:
 
 
 class WeeklyProgramImporter:
-    """Import three validated schedules only when the user presses Refresh."""
+    """Import five validated schedules only when the user presses Refresh."""
 
     def __init__(self, hass: HomeAssistant, entry_id: str, base_url: str) -> None:
         self.hass = hass
@@ -101,7 +104,7 @@ class WeeklyProgramImporter:
         return parse_timeprog(value)
 
     async def async_refresh_all(self) -> dict[str, str]:
-        """Read 21 days sequentially; commit each weekly program atomically."""
+        """Read 35 days sequentially; commit each weekly program atomically."""
         if not self.configured:
             raise ValueError("Configurer l'adresse BSB-LAN JSON dans les options.")
         errors: dict[str, str] = {}
@@ -112,9 +115,13 @@ class WeeklyProgramImporter:
                 days: dict[str, list[dict[str, str]]] = {}
                 try:
                     for index, weekday in enumerate(WEEKDAYS):
-                        parameter = base if index == 0 else f"{base}.{index}"
+                        parameter = (
+                            str(int(base) + index)
+                            if key.startswith("rafraichissement_")
+                            else base if index == 0 else f"{base}.{index}"
+                        )
                         days[weekday] = await self._read_day(session, parameter)
-                        # Avoid a burst of 21 consecutive requests on the BSB bus.
+                        # Avoid a burst of 35 consecutive requests on the BSB bus.
                         await asyncio.sleep(0.2)
                 except (ValueError, asyncio.TimeoutError, OSError) as err:
                     snapshot.status = "Erreur"

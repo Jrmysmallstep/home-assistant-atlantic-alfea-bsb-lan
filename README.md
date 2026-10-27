@@ -2,9 +2,9 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Dernière version publiée : **1.5.22**
+> Version stable : **1.5.25** — Synoptique V2.9.7, programmes natifs chauffage, ECS et rafraîchissement.
 
-## En préparation — V1.5.23 : V3V Q3 / synoptique
+## Inclus dans V1.5.25 — V3V Q3 / synoptique
 
 Sur une Alféa équipée d'une **vanne de dérivation ECS Q3** (paramètre
 BSB-LAN **5731 = 2**), le paramètre **8820** correspond à la commande Q3 :
@@ -35,12 +35,11 @@ visuellement sur l'installation de référence le 26 octobre 2026.
   des installations existantes ; dans le synoptique, sa sortie 8820 est
   présentée comme **Q3** ou **V3V** selon les données disponibles.
 
-**Cette évolution est proposée en branche de développement ; la dernière
-version publiée demeure V1.5.22 jusqu'à validation et publication.**
+**Cette évolution fait partie de la version stable V1.5.25.**
 
 
 
-## Préversion V1.5.25b6 — programmes natifs de rafraîchissement (synoptique V2.9.7)
+## Version stable V1.5.25 — programmes natifs de rafraîchissement (synoptique V2.9.7)
 
 Lecture **réelle validée sur PAC Atlantic Alféa Extensa Duo** le 27 octobre 2026 :
 14 réponses JSON `/JQ` sans erreur, pour les sept jours des deux circuits.
@@ -57,9 +56,8 @@ Lecture **réelle validée sur PAC Atlantic Alféa Extensa Duo** le 27 octobre 2
 - Cette version est **en développement**, à tester dans Home Assistant.
   Ne pas fusionner la PR brouillon avant validation du rendu réel.
 
-**Préversion à créer pour HACS** : `v1.5.25b6`, Target
-`feature/native-weekly-programs-readonly`, « Set as a pre-release ».
-Ne pas utiliser `main`.
+**Publication stable** : tag `v1.5.25` sur `main`, release GitHub normale
+(non préversion), après fusion de la branche `release/v1.5.25`.
 
 ## Préversion V1.5.25b5 — comparaison regroupée par jour (synoptique V2.9.6)
 

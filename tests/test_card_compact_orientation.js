@@ -8,7 +8,7 @@ class EventStub{
 class ElementStub {
  constructor(){this.dataset={};this.events=[];}
  attachShadow(){
-  this.shadowRoot={innerHTML:"",listeners:{},addEventListener:(n,cb)=>{this.shadowRoot.listeners[n]=cb;},querySelector:()=>null};
+  this.shadowRoot={innerHTML:"",listeners:{},addEventListener:(n,cb)=>{this.shadowRoot.listeners[n]=cb;},querySelector:()=>null,querySelectorAll:()=>[]};
   return this.shadowRoot;
  }
  dispatchEvent(e){this.events.push(e);return true;}

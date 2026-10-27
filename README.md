@@ -6,7 +6,7 @@ Cette intégration communautaire relie **Home Assistant** à une **pompe à chal
 
 Elle s'adresse aux personnes qui souhaitent suivre leur installation au quotidien, ajuster certaines consignes et mieux comprendre le fonctionnement de leur PAC, **sans remplacer son programmateur d'origine**.
 
-**Version stable : V1.5.25** · **Synoptique : V2.9.7** · Projet non officiel
+**Version stable : V1.5.26** · **Synoptique : V2.9.7** · Projet non officiel
 
 ## 📸 Aperçu
 
@@ -32,6 +32,8 @@ La carte **PAC Synoptique** affiche d'un coup d'œil le compresseur, la PAC, les
 - Mode et consignes ECS lorsque les paramètres sont disponibles.
 - Suivi de la commande de vanne trois voies **Q3**, pour les installations compatibles et correctement configurées.
 
+- **Appoint électrique ECS (8821)** : lecture JSON toutes les 60 secondes, sans emplacement MQTT supplémentaire. Dans le synoptique ECS, un badge indique « Actif », « Inactif » ou « Indisponible » et remplace le doublon du badge V3V.
+
 ### 📊 Comprendre le fonctionnement de la PAC
 
 - État du compresseur, modulation, heures de fonctionnement et démarrages.
@@ -39,6 +41,12 @@ La carte **PAC Synoptique** affiche d'un coup d'œil le compresseur, la PAC, les
 - États des circulateurs, des circuits et de la production ECS.
 - Énergie totale remontée par BSB-LAN, si disponible.
 - Diagnostics et alertes : cycles courts, redémarrages rapprochés, écarts de température et synchronisation de l'horloge.
+
+### 🚨 Historique des défauts PAC
+
+Les **10 dernières entrées de défauts** sont interrogées toutes les 15 minutes, en lecture seule via l'API JSON BSB-LAN (paramètres `6800` à `6819`). Les paramètres pairs fournissent l'horodatage, les impairs le code de défaut, avec une description si elle est disponible. Les entrées vides sont identifiées par la date `---` et le code `65535`.
+
+L'historique apparaît dans **Alarmes et surveillance**, séparément des alarmes actives, sans modifier leur compteur. Si les 10 entrées sont vides, « Aucun défaut enregistré » est affiché ; une lecture impossible est signalée comme indisponible. Aucun effacement ni écriture vers la PAC.
 
 ### 🗓️ Consulter les programmes horaires natifs
 
@@ -56,7 +64,14 @@ Les horaires peuvent être visualisés dans le synoptique ou dans la carte dédi
 
 **Important : les programmes horaires sont en lecture seule.** Home Assistant ne réécrit pas les plages horaires de la PAC. Leur actualisation est déclenchée manuellement et utilise l'interface HTTP JSON de BSB-LAN, sans ajouter 35 paramètres à la liste MQTT.
 
-## 🚀 Améliorations de la V1.5.25
+## 🚀 Nouveautés de la V1.5.26
+
+- État de l'appoint électrique ECS (`8821`) actualisé par JSON et badge dédié dans le ballon ECS, sans doublon V3V.
+- Historique de 10 défauts (`6800–6819`) dans la section **Alarmes et surveillance**.
+- Aucun nouveau paramètre dans la liste MQTT : ces fonctions nécessitent l'option **Adresse BSB-LAN JSON**.
+- Les tests réels ont confirmé un appoint **inactif** et un historique **vide** ; les états actifs et les défauts réels restent à observer.
+
+### Évolutions déjà présentes en V1.5.25
 
 Cette version apporte notamment :
 
@@ -83,7 +98,9 @@ Pompe à chaleur Atlantic Alféa
       ├─ Thermostats C1 / C2
       ├─ Capteurs et diagnostics
       ├─ Carte PAC Synoptique
-      └─ Programmes hebdomadaires (lecture)
+      ├─ Programmes hebdomadaires (lecture)
+      ├─ Appoint électrique ECS (JSON 8821)
+      └─ Historique des défauts (JSON 6800–6819)
 ```
 
 La **PAC reste responsable de sa régulation et de ses horaires**. L'intégration transmet certaines commandes prévues par le régulateur, lit les états BSB-LAN et les présente dans Home Assistant.
@@ -95,7 +112,7 @@ Les disponibilités et les réactions des commandes dépendent du modèle, du r�
 - Une installation **Home Assistant** fonctionnelle.
 - Une passerelle **BSB-LAN** reliée à la PAC et accessible sur le réseau.
 - **MQTT** configuré pour publier les paramètres nécessaires dans Home Assistant.
-- Pour l'importation des programmes natifs et certaines commandes : l'**adresse HTTP(S) JSON de BSB-LAN** renseignée dans les options de l'intégration.
+- Pour l'importation des programmes natifs, l'appoint ECS, l'historique des défauts et certaines commandes : l'**adresse HTTP(S) JSON de BSB-LAN** renseignée dans les options de l'intégration.
 
 **Matériel de référence testé :** Atlantic Alféa Extensa Duo, régulateur **RVS21.831F** (famille 211, variante 127).
 
@@ -121,10 +138,10 @@ D'autres PAC Atlantic Alféa ou régulateurs Siemens RVS pourraient fonctionner,
 
 ### Carte PAC Synoptique
 
-Dans **Paramètres → Tableaux de bord → Ressources**, ajoutez une ressource de type **Module JavaScript** :
+Dans **Paramètres → Tableaux de bord → Ressources**, ajoutez une ressource de type **Module JavaScript** ou modifiez l'URL de l'ancienne ressource, puis rechargez la page :
 
 ```text
-/alfea-synoptique/pac-synoptique-card.js?v=1.5.25
+/alfea-synoptique/pac-synoptique-card.js?v=1.5.26
 ```
 
 Puis ajoutez une carte via l'éditeur visuel, ou utilisez :
@@ -145,7 +162,7 @@ La carte propose les orientations automatique, paysage et portrait, ainsi que le
 Ajoutez une seconde ressource **Module JavaScript** :
 
 ```text
-/alfea-synoptique/pac-programmes-card.js?v=1.5.25
+/alfea-synoptique/pac-programmes-card.js?v=1.5.26
 ```
 
 Puis créez une carte manuelle :
@@ -163,7 +180,7 @@ La carte présente les cinq programmes et permet de demander leur **relecture** 
 
 **Vanne Q3 :** le paramètre `8820` représente la **commande** de la vanne de dérivation sur les installations où `5731 = 2`. Confirmez cette configuration avant d'activer l'option correspondante. **Il ne s'agit pas d'un capteur de position mécanique réelle.**
 
-**Paramètres MQTT :** la passerelle BSB-LAN dispose d'une limite de paramètres publiés en continu ; la lecture des programmes natifs a été conçue pour ne pas consommer ces emplacements supplémentaires.
+**Paramètres MQTT :** la passerelle BSB-LAN dispose d'une limite de paramètres publiés en continu ; la lecture JSON des programmes natifs, de l'appoint ECS et des défauts ne consomme aucun emplacement supplémentaire.
 
 **Sécurité :** vérifiez toujours les paramètres sur votre propre régulateur. Les commandes de changement de saison et certains comportements dépendent de la configuration matérielle. Évitez toute écriture de paramètres non validés sur votre installation.
 

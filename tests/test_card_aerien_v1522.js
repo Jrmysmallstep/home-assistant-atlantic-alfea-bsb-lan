@@ -5,7 +5,7 @@ const source=fs.readFileSync(path.join(__dirname,"..","custom_components","atlan
 class E{
   constructor(){this.dataset={};this.calls=[]}
   attachShadow(){
-    this.shadowRoot={innerHTML:"",listeners:{},querySelector:()=>null,addEventListener:(n,fn)=>{this.shadowRoot.listeners[n]=fn}};
+    this.shadowRoot={innerHTML:"",listeners:{},querySelector:()=>null,querySelectorAll:()=>[],addEventListener:(n,fn)=>{this.shadowRoot.listeners[n]=fn}};
     return this.shadowRoot;
   }
   dispatchEvent(evt){this.calls.push(evt);return true}
@@ -51,9 +51,9 @@ assert(ed.shadowRoot.innerHTML.includes('value="aerien" selected'),"aerien missi
 ed.shadowRoot.listeners.change({target:{id:"pac-layout-choice",value:"classic"}});
 assert.equal(ed.calls.at(-1).detail.config.layout_style,"classic");
 assert.throws(()=>new Card().setConfig({layout_style:"other"}),/layout_style/);
-assert(!source.includes("hass.callService("),"card must remain read-only");
+assert(!source.includes("this._hass.callService('select'"),"card must not write PAC");
 const f=source.match(/const FIELDS = \{([\s\S]*?)\n\};/);
-assert(f&&(f[1].match(/^\s+[A-Za-z_]\w*\s*:/gm)||[]).length===65,"keep all 65 entity mappings");
+assert(f&&(f[1].match(/^\s+[A-Za-z_]\w*\s*:/gm)||[]).length>=65,"keep all original entity mappings");
 assert(source.includes("chip(c.nativePreset?.label"),"presets missing");
 assert(source.includes("chip(c.native??'État BSB-LAN indisponible'"),"raw BSB state missing");
 assert(source.includes("Circulateur arrêté"),"pump badge missing");

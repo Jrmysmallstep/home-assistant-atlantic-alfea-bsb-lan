@@ -9,7 +9,7 @@ from datetime import timedelta
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import ClimateEntityFeature, HVACAction, HVACMode
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -653,12 +653,17 @@ class AlfeaCircuitClimate(ClimateEntity):
         )
         self.async_write_ha_state()
 
+    @callback
+    def _schedule_regime_refresh(self, _now) -> None:
+        """Schedule native regime polling on the Home Assistant event loop."""
+        self.hass.async_create_task(self._refresh_regime())
+
     async def async_added_to_hass(self) -> None:
         if self._regime_api is not None:
             await self._refresh_regime()
             self.async_on_remove(async_track_time_interval(
                 self.hass,
-                lambda _now: self.hass.async_create_task(self._refresh_regime()),
+                self._schedule_regime_refresh,
                 timedelta(seconds=60),
             ))
         self.async_on_remove(self._cancel_pending_override)

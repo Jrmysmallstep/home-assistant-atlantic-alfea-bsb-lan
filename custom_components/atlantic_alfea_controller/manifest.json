@@ -6,8 +6,10 @@
   "integration_type": "device",
   "iot_class": "local_push",
   "requirements": [],
-  "after_dependencies": ["mqtt"],
-  "version": "1.5.25b6",
+  "after_dependencies": [
+    "mqtt"
+  ],
+  "version": "1.5.25",
   "documentation": "https://github.com/Jrmysmallstep/home-assistant-atlantic-alfea-bsb-lan#readme",
   "issue_tracker": "https://github.com/Jrmysmallstep/home-assistant-atlantic-alfea-bsb-lan/issues"
 }

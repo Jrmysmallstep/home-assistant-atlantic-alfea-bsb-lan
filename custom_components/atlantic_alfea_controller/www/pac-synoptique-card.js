@@ -509,8 +509,8 @@ class PacSynoptiqueCard extends HTMLElement {
       : faultStatus==='Indisponible'||!faultSnapshot
         ? '<p>Historique indisponible : lecture JSON non confirmée.</p>'
         : '<div class="alert-stack">'+faultEntries.map(record=>
-            '<div class="alarm-fact"><span>Entrée '+html(record.rang)+' · BSB '+html(record.parametres)+'</span><strong>'+
-            html([record.premier,record.second,record.description_premier,record.description_second].filter(Boolean).join(' · '))+
+            '<div class="alarm-fact"><span>Entrée '+html(record.rang)+'</span><strong>'+
+            html([record.date, 'Code '+record.code, record.description].filter(Boolean).join(' · '))+
             '</strong></div>').join('')+'</div>';
     const alertsMeta=[
       `${alertCoverage}/${ALERTS.length} alertes individuelles disponibles`,

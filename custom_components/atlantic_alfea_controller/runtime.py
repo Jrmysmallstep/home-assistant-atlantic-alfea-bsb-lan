@@ -29,6 +29,7 @@ from .const import (
     SHORT_CYCLES_PER_HOUR,
     SHORT_CYCLES_PER_SIX_HOURS,
 )
+from .ecs_heater_json import heater_state
 from .helpers import (
     dhw_charge_requested,
     generator_is_cooling,
@@ -402,10 +403,7 @@ class AlfeaRuntimeMonitor:
             self.hass,
             source_entity(self.hass, self.entry, "dhw_pump", 8820),
         )
-        electric = state_is_on(
-            self.hass,
-            source_entity(self.hass, self.entry, "dhw_electric_heater", 8821),
-        )
+        electric = heater_state(self.hass, self.entry)
         pac_state = state_value(
             self.hass,
             source_entity(self.hass, self.entry, "pac_state", 8006),

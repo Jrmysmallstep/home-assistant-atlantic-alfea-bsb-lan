@@ -58,6 +58,7 @@ const FIELDS = {
   ecsPump:         ['binary_sensor','ECS - Pompe'],
   v3v:             ['sensor','V3V - Commande'],
   ecsElectric:     ['binary_sensor','ECS - Appoint électrique'],
+  faultHistory:     ['sensor','PAC - Historique des défauts'],
   compressorHours: ['sensor','COMP - Heures de fonctionnement'],
   compressorStarts:['sensor','COMP - Nombre de démarrages'],
   minimumRun:      ['sensor','COMP - Temps de marche minimum'],
@@ -500,6 +501,17 @@ class PacSynoptiqueCard extends HTMLElement {
           ${context.length?`<div class="alarm-context">${context.join('')}</div>`:''}</div>`;
       }).join('')}</div>` :
       `<div class="alert-clear">${icon('heat')}<div><strong>${alertCoverage || summary!==null ?'Aucune alarme active remontée':'Surveillance indisponible'}</strong><span>${alertCoverage || summary!==null ?'Aucun défaut signalé par les capteurs disponibles':'Aucun capteur d’alarme identifié'}</span></div></div>`;
+    const faultSnapshot=this._s('faultHistory');
+    const faultStatus=faultSnapshot?.state||'Indisponible';
+    const faultEntries=Array.isArray(faultSnapshot?.attributes?.defauts)?faultSnapshot.attributes.defauts:[];
+    const faultHtml=faultStatus==='Aucun défaut enregistré'
+      ? '<p>Aucun défaut enregistré</p>'
+      : faultStatus==='Indisponible'||!faultSnapshot
+        ? '<p>Historique indisponible : lecture JSON non confirmée.</p>'
+        : '<div class="alert-stack">'+faultEntries.map(record=>
+            '<div class="alarm-fact"><span>Entrée '+html(record.rang)+' · BSB '+html(record.parametres)+'</span><strong>'+
+            html([record.premier,record.second,record.description_premier,record.description_second].filter(Boolean).join(' · '))+
+            '</strong></div>').join('')+'</div>';
     const alertsMeta=[
       `${alertCoverage}/${ALERTS.length} alertes individuelles disponibles`,
       summaryLearning?'Supervision compresseur en apprentissage':null,
@@ -1306,7 +1318,7 @@ class PacSynoptiqueCard extends HTMLElement {
       <details data-panel="alarms" class="alarm-details" ${prevAlarms?'open':''}>
         <summary><span>Alarmes et surveillance</span>
           ${chip(`${alertActive.length} alarme${alertActive.length!==1?'s':''} active${alertActive.length!==1?'s':''}`,alertActive.length?'warning':'dim')}</summary>
-        <div class="alerts ${alarmsClass}">${alertDescription}<div class="alert-meta">${html(alertsMeta)}</div></div>
+        <div class="alerts ${alarmsClass}">${alertDescription}<div class="alert-meta">${html(alertsMeta)}</div></div><div class="alerts"><h4>Historique des défauts PAC · 10 dernières entrées</h4>${faultHtml}</div>
       </details>
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>

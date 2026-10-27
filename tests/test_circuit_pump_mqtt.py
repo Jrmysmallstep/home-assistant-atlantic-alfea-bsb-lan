@@ -13,7 +13,7 @@ class PumpMqttTests(unittest.TestCase):
         self.assertIn('((1, 9031), (2, 8760))', setup)
         self.assertIn('BSB-LAN/+/+/{parameter}/status', setup)
         self.assertIn('async_dispatcher_send', setup)
-        self.assertIn('entry.async_on_unload(unsub)', setup)
+        self.assertIn('entry.async_on_unload(_clear_mqtt_subscriptions)', setup)
         self.assertNotIn('async_publish', setup)
 
     def test_both_entities_get_live_feedback(self):

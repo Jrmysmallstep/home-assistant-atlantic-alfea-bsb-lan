@@ -18,6 +18,7 @@ from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_
 from .const import CONF_Q3_DIVERTER_CONFIRMED, DOMAIN, MODE_COOL, MODE_HEAT
 from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
+from .regime_api import valid_base_url
 from .weekly_programs import PROGRAMS
 
 
@@ -280,6 +281,8 @@ async def async_setup_entry(
     entities.extend(AlfeaCircuitSeasonStateSensor(hass, entry, circuit) for circuit in (1, 2))
     entities.append(AlfeaV3VCommandSensor(hass, entry))
     entities.extend(AlfeaWeeklyProgramSensor(hass, entry, key) for key in PROGRAMS)
+    if valid_base_url(str(entry.options.get('bsb_base_url', '')).strip()):
+        entities.append(AlfeaFaultHistorySensor(hass, entry))
     entities.extend(AlfeaCircuitProgramDiagnosticSensor(hass, entry, item) for item in _CIRCUIT_PROGRAM_DIAGNOSTICS)
     entities.extend(AlfeaProgrammedSetpointSensor(hass, entry, item) for item in _PROGRAMMED_SETPOINTS)
     if isinstance(entry.runtime_data, AlfeaRuntimeMonitor):
@@ -699,3 +702,48 @@ class AlfeaClockOffsetSensor(_AlfeaClockSensorBase):
             "sens": "PAC en avance" if value > 0 else "PAC en retard" if value < 0 else "synchronisée",
             "age_derniere_lecture_bsb_s": age,
         }
+
+
+class AlfeaFaultHistorySensor(SensorEntity):
+    """Historical BSB faults, without treating old records as live alarms."""
+
+    _attr_has_entity_name = True
+    _attr_name = "PAC - Historique des défauts"
+    _attr_icon = "mdi:history"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_fault_history"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _snapshot(self):
+        return self.hass.data.get(DOMAIN, {}).get("fault_history", {}).get(
+            self._entry.entry_id, {}
+        )
+
+    @property
+    def native_value(self):
+        snapshot = self._snapshot()
+        if snapshot.get("status") != "Chargé":
+            return "Indisponible"
+        count = len(snapshot.get("entries", []))
+        return "Aucun défaut enregistré" if count == 0 else f"{count} défaut(s) enregistré(s)"
+
+    @property
+    def extra_state_attributes(self):
+        snapshot = self._snapshot()
+        return {
+            "statut_lecture": snapshot.get("status", "Indisponible"),
+            "date_lecture": snapshot.get("updated"),
+            "defauts": snapshot.get("entries", []),
+            "lecture_seule": True,
+        }
+
+    async def async_added_to_hass(self):
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass,
+            f"{DOMAIN}_fault_history_{self._entry.entry_id}",
+            self.async_write_ha_state,
+        ))

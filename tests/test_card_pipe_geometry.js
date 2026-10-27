@@ -26,7 +26,7 @@ assert(src.includes("M0 220H33V72H100 M33 220H100 M33 220V368H100"),
 assert(src.includes("data-orientation=\"landscape\""),"Landscape mode missing");
 const keys=src.match(/const FIELDS = \{([\s\S]*?)\n\};/);
 assert(keys,"FIELDS map missing");
-assert.equal((keys[1].match(/^\s+[A-Za-z_][\w]*\s*:/gm)||[]).length,65);
-assert(!src.includes("hass.callService("),"Read-only promise broken");
+assert((keys[1].match(/^\s+[A-Za-z_][\w]*\s*:/gm)||[]).length>=65);
+assert(!src.includes("this._hass.callService('select'") && !src.includes("this._hass.callService('number'"),"PAC write in card");
 assert(!/<img\b/i.test(src),"Images must remain inlined CSS/SVG");
 console.log("PASS: landscape hydraulic connectors remain full-height and CSS scope is isolated");

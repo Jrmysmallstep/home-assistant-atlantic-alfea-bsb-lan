@@ -16,6 +16,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
+from .ecs_heater_json import async_start_heater_polling
+from .fault_history_json import async_start_fault_history
 from .clock import async_start_clock_polling
 from .const import DOMAIN, PLATFORMS
 from .discovery import discover_mapping
@@ -219,6 +221,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(async_start_data_polling(hass))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(await async_start_heater_polling(hass, entry))
+    entry.async_on_unload(await async_start_fault_history(hass, entry))
     return True
 
 

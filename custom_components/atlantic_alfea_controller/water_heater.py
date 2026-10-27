@@ -9,6 +9,8 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from .ecs_heater_json import heater_state
 from .const import (
     DHW_ECO,
     DHW_OFF,
@@ -155,7 +157,7 @@ class AlfeaWaterHeater(WaterHeaterEntity):
             "compresseur_actif": compressor,
             "modulation_compresseur": modulation,
             "pompe_ecs": state_is_on(self.hass, self._source("dhw_pump", 8820)),
-            "appoint_electrique": state_is_on(self.hass, self._source("dhw_electric_heater", 8821)),
+            "appoint_electrique": heater_state(self.hass, self._entry),
         }
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
@@ -167,6 +169,10 @@ class AlfeaWaterHeater(WaterHeaterEntity):
         await async_select_option(self.hass, source, _MODE_OPTIONS[operation_mode])
 
     async def async_added_to_hass(self) -> None:
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass, f"{DOMAIN}_ecs_heater_{self._entry.entry_id}",
+            self.async_write_ha_state,
+        ))
         self.async_on_remove(
             track_entities(
                 self.hass,

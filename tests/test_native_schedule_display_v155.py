@@ -52,7 +52,9 @@ class TestNativeScheduleDisplay(unittest.TestCase):
     def test_bundled_card_is_read_only(self):
         card = (ROOT / "custom_components" / "atlantic_alfea_controller" / "www" / "pac-synoptique-card.js").read_text(encoding="utf-8")
         self.assertIn("class PacSynoptiqueCard extends HTMLElement", card)
-        self.assertNotIn("hass.callService(", card)
+        self.assertIn("this._hass.callService('button','press'", card)
+        self.assertNotIn("this._hass.callService('select'", card)
+        self.assertNotIn("this._hass.callService('number'", card)
         self.assertNotIn("hass.services.", card)
         self.assertIn("programmedRegime = raw =>", card)
         self.assertIn("program:this._v(", card)

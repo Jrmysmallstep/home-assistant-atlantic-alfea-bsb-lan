@@ -19,6 +19,7 @@ from .clock import clock_offset_seconds, clock_source_ids, clock_source_is_fresh
 from .const import CLOCK_DESYNC_THRESHOLD_SECONDS, DOMAIN
 from .helpers import circuit_pump_is_on, source_entity, split_bsb_status, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
+from .ecs_heater_json import heater_state, json_enabled
 
 
 async def async_setup_entry(
@@ -55,17 +56,9 @@ async def async_setup_entry(
                 EntityCategory.DIAGNOSTIC,
             )
         )
-    if entry.data.get("dhw_electric_heater"):
+    if entry.data.get("dhw_electric_heater") or json_enabled(entry):
         entities.append(
-            AlfeaBinaryProxy(
-                hass,
-                entry,
-                "dhw_electric_heater",
-                "ECS - Appoint électrique",
-                "mdi:water-boiler",
-                BinarySensorDeviceClass.RUNNING,
-                EntityCategory.DIAGNOSTIC,
-            )
+            AlfeaEcsHeaterBinarySensor(hass, entry)
         )
     if entry.data.get("dhw_pump"):
         entities.append(
@@ -180,7 +173,7 @@ class AlfeaBinaryProxy(BinarySensorEntity):
         entity_category: EntityCategory | None = None,
     ) -> None:
         self.hass = hass
-        self._source = entry.data[key]
+        self._source = entry.data.get(key)
         self._attr_name = name
         self._attr_icon = icon
         self._attr_device_class = device_class
@@ -194,6 +187,27 @@ class AlfeaBinaryProxy(BinarySensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source], self.async_write_ha_state))
+
+
+class AlfeaEcsHeaterBinarySensor(AlfeaBinaryProxy):
+    """Keep the existing entity ID while using the JSON 8821 state."""
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        super().__init__(hass, entry, "dhw_electric_heater", "ECS - Appoint électrique",
+                         "mdi:water-boiler", BinarySensorDeviceClass.RUNNING,
+                         EntityCategory.DIAGNOSTIC)
+        self._entry = entry
+
+    @property
+    def is_on(self) -> bool | None:
+        return heater_state(self.hass, self._entry)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass, f"{DOMAIN}_ecs_heater_{self._entry.entry_id}",
+            self.async_write_ha_state,
+        ))
 
 
 @dataclass(frozen=True)

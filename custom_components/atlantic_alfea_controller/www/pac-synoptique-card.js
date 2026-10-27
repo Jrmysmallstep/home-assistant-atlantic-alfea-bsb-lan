@@ -58,6 +58,7 @@ const FIELDS = {
   ecsPump:         ['binary_sensor','ECS - Pompe'],
   v3v:             ['sensor','V3V - Commande'],
   ecsElectric:     ['binary_sensor','ECS - Appoint électrique'],
+  faultHistory:     ['sensor','PAC - Historique des défauts'],
   compressorHours: ['sensor','COMP - Heures de fonctionnement'],
   compressorStarts:['sensor','COMP - Nombre de démarrages'],
   minimumRun:      ['sensor','COMP - Temps de marche minimum'],
@@ -500,6 +501,17 @@ class PacSynoptiqueCard extends HTMLElement {
           ${context.length?`<div class="alarm-context">${context.join('')}</div>`:''}</div>`;
       }).join('')}</div>` :
       `<div class="alert-clear">${icon('heat')}<div><strong>${alertCoverage || summary!==null ?'Aucune alarme active remontée':'Surveillance indisponible'}</strong><span>${alertCoverage || summary!==null ?'Aucun défaut signalé par les capteurs disponibles':'Aucun capteur d’alarme identifié'}</span></div></div>`;
+    const faultSnapshot=this._s('faultHistory');
+    const faultStatus=faultSnapshot?.state||'Indisponible';
+    const faultEntries=Array.isArray(faultSnapshot?.attributes?.defauts)?faultSnapshot.attributes.defauts:[];
+    const faultHtml=faultStatus==='Aucun défaut enregistré'
+      ? '<p>Aucun défaut enregistré</p>'
+      : faultStatus==='Indisponible'||!faultSnapshot
+        ? '<p>Historique indisponible : lecture JSON non confirmée.</p>'
+        : '<div class="alert-stack">'+faultEntries.map(record=>
+            '<div class="alarm-fact"><span>Entrée '+html(record.rang)+'</span><strong>'+
+            html([record.date, 'Code '+record.code, record.description].filter(Boolean).join(' · '))+
+            '</strong></div>').join('')+'</div>';
     const alertsMeta=[
       `${alertCoverage}/${ALERTS.length} alertes individuelles disponibles`,
       summaryLearning?'Supervision compresseur en apprentissage':null,
@@ -1299,15 +1311,14 @@ class PacSynoptiqueCard extends HTMLElement {
               <span class="state-dot ${ecsTone}"></span></div>
             <div class="out-values"><div><span>Température ballon</span><strong>${html(temp(ecs.tempBallon))}</strong></div>
               <div><span>Consigne affichée</span><strong>${html(temp(ecs.target))}</strong></div></div>
-            <div class="out-foot">${chip(v3v?v3vLabel:ecs.pump===true?'Sortie Q3 active':ecs.pump===false?'Sortie Q3 inactive':'Sortie Q3 inconnue',v3v?v3vTone:ecs.pump===true?'positive':'dim')}
-              ${ecs.withElectric?chip('Appoint électrique actif','warning'):''}</div>
+            <div class="out-foot">${chip(ecs.electric===true?'Appoint électrique actif':ecs.electric===false?'Appoint électrique inactif':'Appoint électrique indisponible',ecs.electric===true?'warning':ecs.electric===false?'positive':'dim')}</div>
           </section>
         </div>
       </div>
       <details data-panel="alarms" class="alarm-details" ${prevAlarms?'open':''}>
         <summary><span>Alarmes et surveillance</span>
           ${chip(`${alertActive.length} alarme${alertActive.length!==1?'s':''} active${alertActive.length!==1?'s':''}`,alertActive.length?'warning':'dim')}</summary>
-        <div class="alerts ${alarmsClass}">${alertDescription}<div class="alert-meta">${html(alertsMeta)}</div></div>
+        <div class="alerts ${alarmsClass}">${alertDescription}<div class="alert-meta">${html(alertsMeta)}</div></div><div class="alerts"><h4>Historique des défauts PAC · 10 dernières entrées</h4>${faultHtml}</div>
       </details>
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>

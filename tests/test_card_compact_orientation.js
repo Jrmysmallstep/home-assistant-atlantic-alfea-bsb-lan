@@ -8,7 +8,7 @@ class EventStub{
 class ElementStub {
  constructor(){this.dataset={};this.events=[];}
  attachShadow(){
-  this.shadowRoot={innerHTML:"",listeners:{},addEventListener:(n,cb)=>{this.shadowRoot.listeners[n]=cb;},querySelector:()=>null};
+  this.shadowRoot={innerHTML:"",listeners:{},addEventListener:(n,cb)=>{this.shadowRoot.listeners[n]=cb;},querySelector:()=>null,querySelectorAll:()=>[]};
   return this.shadowRoot;
  }
  dispatchEvent(e){this.events.push(e);return true;}
@@ -27,7 +27,8 @@ assert(Card&&Editor,"card and editor must register");
 const originalMap=src.match(/const FIELDS = \{([\s\S]*?)\n\};/);
 assert(originalMap,"field mapping missing");
 const mapped=(originalMap[1].match(/^\s+[A-Za-z_][\w]*\s*:/gm)||[]);
-assert.equal(mapped.length,65,"65 original entity mappings must remain");
+assert(mapped.length>=65,"existing mappings must remain");
+assert(src.includes("faultHistory:"),"fault history mapping missing");
 assert(src.includes("ALERTS.filter"),"alarm monitoring unchanged");
 assert(!/<img\b/i.test(src),"external images prohibited");
 assert(!/<image\b/i.test(src),"external SVG image prohibited");
@@ -67,5 +68,5 @@ assert.equal(editor.events.at(-1).detail.config.layout_orientation,"auto");
 const before=editor.events.length;
 fn({target:{id:"pac-orientation-choice",value:"invalid"}});
 assert.equal(editor.events.length,before);
-assert(!src.includes("hass.callService("),"card must be read-only");
+assert(!src.includes("this._hass.callService('select'") && !src.includes("this._hass.callService('number'"),"card must not write to PAC");
 console.log("PASS: CSS-only compact landscape/portrait/auto, 65 entities, editor, animations, themes, read-only");

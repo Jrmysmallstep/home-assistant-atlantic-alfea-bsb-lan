@@ -1,4 +1,4 @@
-name: Atlantic Alféa V1.5.22 — synoptique Aérien
+name: Atlantic Alféa — contrôles synoptique
 on:
   pull_request:
     branches: [main]
@@ -34,21 +34,5 @@ jobs:
           import json
           from pathlib import Path
           m=json.loads(Path("custom_components/atlantic_alfea_controller/manifest.json").read_text())
-          assert m["version"]=="1.5.22"
+          assert isinstance(m["version"], str) and m["version"]
           PY
-  release:
-    needs: checks
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Publier V1.5.22 si absente
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view V1.5.22 >/dev/null 2>&1; then exit 0; fi
-          gh release create V1.5.22 \
-            --target "$GITHUB_SHA" \
-            --title "Atlantic Alféa BSB-LAN V1.5.22 — Aérien" \
-            --notes-file docs/RELEASE_NOTES_V1522.md \
-            --latest

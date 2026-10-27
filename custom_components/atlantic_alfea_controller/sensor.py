@@ -18,6 +18,7 @@ from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_
 from .const import CONF_Q3_DIVERTER_CONFIRMED, DOMAIN, MODE_COOL, MODE_HEAT
 from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
+from .weekly_programs import PROGRAMS
 
 
 @dataclass(frozen=True)
@@ -278,6 +279,7 @@ async def async_setup_entry(
     ]
     entities.extend(AlfeaCircuitSeasonStateSensor(hass, entry, circuit) for circuit in (1, 2))
     entities.append(AlfeaV3VCommandSensor(hass, entry))
+    entities.extend(AlfeaWeeklyProgramSensor(hass, entry, key) for key in PROGRAMS)
     entities.extend(AlfeaCircuitProgramDiagnosticSensor(hass, entry, item) for item in _CIRCUIT_PROGRAM_DIAGNOSTICS)
     entities.extend(AlfeaProgrammedSetpointSensor(hass, entry, item) for item in _PROGRAMMED_SETPOINTS)
     if isinstance(entry.runtime_data, AlfeaRuntimeMonitor):
@@ -335,6 +337,56 @@ class AlfeaProxySensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(track_entities(self.hass, [self._source], self.async_write_ha_state))
+
+
+class AlfeaWeeklyProgramSensor(SensorEntity):
+    """Expose the PAC's native weekly program, imported only on demand."""
+
+    _attr_has_entity_name = True
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, key: str) -> None:
+        self.hass = hass
+        self._entry = entry
+        self._key = key
+        name, icon, _base = PROGRAMS[key]
+        self._attr_name = f"Programme natif - {name}"
+        self._attr_icon = icon
+        self._attr_unique_id = f"{entry.entry_id}_weekly_program_{key}"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _importer(self):
+        return self.hass.data.get(DOMAIN, {}).get("weekly_programs", {}).get(self._entry.entry_id)
+
+    @property
+    def native_value(self) -> str:
+        importer = self._importer()
+        if importer is None or not importer.configured:
+            return "À configurer"
+        return importer.snapshots[self._key].status
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        importer = self._importer()
+        if importer is None:
+            return {}
+        snapshot = importer.snapshots[self._key]
+        _name, _icon, base = PROGRAMS[self._key]
+        return {
+            "lecture_seule": True,
+            "source": "BSB-LAN JSON /JQ",
+            "parametre_lundi": base,
+            "derniere_importation": snapshot.updated,
+            "erreur_derniere_lecture": snapshot.error,
+            "jours": snapshot.days or {},
+        }
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass,
+            f"{DOMAIN}_weekly_programs_{self._entry.entry_id}",
+            self.async_write_ha_state,
+        ))
 
 
 class AlfeaV3VCommandSensor(SensorEntity):

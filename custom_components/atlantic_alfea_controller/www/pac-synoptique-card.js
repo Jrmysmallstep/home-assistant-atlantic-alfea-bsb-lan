@@ -1,8 +1,8 @@
 /**
- * PAC Synoptique v2.9.2 (intégration V1.5.24) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.7 (intégration V1.5.25 bêta 6) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.24
- * Aucun appel de service Home Assistant, aucune commande à la PAC.
+ * Inclus dans atlantic_alfea_controller 1.5.25b6
+ * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
 'use strict';
@@ -181,6 +181,9 @@ class PacSynoptiqueCard extends HTMLElement {
     this._lastDiscovery=0;
     this._resolvedThemeMode=null;
     this._lastThemeName=null;
+    this._visiblePrograms=new Set(['chauffage_c1','chauffage_c2','ecs']);
+    this._weeklyRefreshing=false;
+    this._weeklyRefreshError=null;
   }
   static getStubConfig() {return {theme_mode:'auto',layout_orientation:'auto',show_diagnostics:true};}
   static getConfigElement() {return document.createElement(EDITOR_TAG);}
@@ -234,7 +237,15 @@ class PacSynoptiqueCard extends HTMLElement {
         st?.attributes?.temperature,st?.attributes?.production,st?.attributes?.regime_consigne,
         st?.attributes?.phase_apprentissage,st?.attributes?.pompe_ecs,st?.attributes?.appoint_electrique];
     }));
-    if(changed||signature!==this._lastSignature){this._lastSignature=signature;this._render();}
+    // Les programmes natifs sont des capteurs à la demande : inclure leur
+    // état et leur horodatage dans la signature pour rafraîchir le synoptique.
+    const programSignature=JSON.stringify(Object.values(hass.states).filter(st=>
+      st.entity_id.startsWith('sensor.') &&
+      st.attributes?.source==='BSB-LAN JSON /JQ' &&
+      ['501','521','561','11000','11010'].includes(String(st.attributes?.parametre_lundi))
+    ).map(st=>[st.entity_id,st.state,st.attributes?.derniere_importation,st.attributes?.erreur_derniere_lecture]));
+    const fullSignature=signature+'|'+programSignature;
+    if(changed||fullSignature!==this._lastSignature){this._lastSignature=fullSignature;this._render();}
   }
   _discover(){
     const states=this._hass?.states||{};
@@ -332,6 +343,121 @@ class PacSynoptiqueCard extends HTMLElement {
     return `<div class="detail-row"><span>${html(label)}</span><strong class="${!st||raw==null?'na':''}">${html(value)}</strong></div>`;
   }
   _diagGroup(title,body){return `<section class="diag-group"><h4>${html(title)}</h4>${body}</section>`;}
+  _nativeWeeklyPrograms(){
+    const programs=[
+      {key:'chauffage_c1',base:'501',label:'RDC',title:'Chauffage RDC',tone:'heat'},
+      {key:'chauffage_c2',base:'521',label:'Étage',title:'Chauffage étage',tone:'floor'},
+      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire',tone:'water'},
+      {key:'rafraichissement_c1',base:'11000',label:'Froid RDC',title:'Rafraîchissement RDC',tone:'cool'},
+      {key:'rafraichissement_c2',base:'11010',label:'Froid étage',title:'Rafraîchissement étage',tone:'coolfloor'}
+    ];
+    const states=Object.values(this._hass?.states||{});
+    const sources=new Map(programs.map(p=>[p.key,states.find(st=>
+      st.entity_id.startsWith('sensor.') &&
+      st.attributes?.source==='BSB-LAN JSON /JQ' &&
+      String(st.attributes?.parametre_lundi)===p.base
+    )]));
+    const button=states.find(st=>st.entity_id.startsWith('button.') &&
+      (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
+    const canRefresh=button && button.state!=='unavailable' && !this._weeklyRefreshing;
+    const weekdays=[
+      ['lundi','Lun'],['mardi','Mar'],['mercredi','Mer'],['jeudi','Jeu'],
+      ['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']
+    ];
+    const time=value=>{
+      if(typeof value!=='string'||!/^\d{2}:\d{2}$/.test(value))return null;
+      const [h,m]=value.split(':').map(Number);
+      return h<=24&&m<60&&(h<24||m===0)?h*60+m:null;
+    };
+    const selected=programs.filter(p=>this._visiblePrograms.has(p.key));
+    const checks=programs.map(p=>{
+      const checked=this._visiblePrograms.has(p.key);
+      const source=sources.get(p.key);
+      const status=source?.state||'Non chargé';
+      return `<label class="weekly-choice ${p.tone} ${checked?'active':''}"
+        title="${html(p.title)} · ${html(status)}">
+        <input type="checkbox" data-program-choice="${p.key}" ${checked?'checked':''}
+          aria-label="Afficher ${html(p.title)}">
+        <span>${html(p.label)}</span></label>`;
+    }).join('');
+    // Une seule graduation commune à toutes les lignes et tous les jours.
+    const axis=`<div class="weekly-axis"><span></span><span></span>
+      <div class="weekly-axis-ticks">
+        ${Array.from({length:9},(_,i)=>`<span>${i*3}h</span>`).join('')}
+      </div></div>`;
+    const days=weekdays.map(([day,label])=>{
+      const lanes=selected.map(p=>{
+        const source=sources.get(p.key);
+        const ranges=Array.isArray(source?.attributes?.jours?.[day])
+          ? source.attributes.jours[day] : null;
+        const bars=(ranges||[]).map(range=>{
+          const start=time(range.debut),end=time(range.fin);
+          if(start===null||end===null||end<=start)return '';
+          const left=(start/1440*100).toFixed(4);
+          const width=((end-start)/1440*100).toFixed(4);
+          const label=html(p.title+' : '+range.debut+' – '+range.fin);
+          return `<span class="weekly-slot" style="left:${left}%;width:${width}%"
+            title="${label}" aria-label="${label}"></span>`;
+        }).join('');
+        const rangesText=ranges===null?'<span class="weekly-empty">Non chargé</span>':
+          ranges.length===0?'<span class="weekly-empty">Aucune plage</span>':
+          ranges.map(range=>`<span class="weekly-range">
+            ${html(range.debut)}–${html(range.fin)}</span>`).join('');
+        return `<div class="weekly-lane ${p.tone}">
+          <span class="weekly-lane-label" title="${html(p.title)}">${html(p.label)}</span>
+          <div class="weekly-lane-body">
+            <div class="weekly-track">${bars}</div>
+            <div class="weekly-times">${rangesText}</div>
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="weekly-day-group">
+        <span class="weekly-day">${label}</span>
+        <div class="weekly-day-lanes">${lanes}</div>
+      </div>`;
+    }).join('');
+    const statuses=selected.map(p=>{
+      const source=sources.get(p.key);
+      const date=source?.attributes?.derniere_importation;
+      const error=source?.attributes?.erreur_derniere_lecture;
+      return `<span class="weekly-state ${p.tone}" title="${date?'Importé le '+html(date.replace('T',' ')):'Aucune importation'}">
+        ${html(p.label)} : ${html(source?.state||'Non chargé')}${error?' ⚠':''}</span>`;
+    }).join('');
+    const errors=selected.map(p=>{
+      const error=sources.get(p.key)?.attributes?.erreur_derniere_lecture;
+      return error?`<p class="weekly-error">${html(p.label)} : ${html(error)}</p>`:'';
+    }).join('');
+    return this._diagGroup('Programmes horaires natifs · Lecture seule',
+      `<div class="weekly-toolbar">
+        <div class="weekly-choices" role="group" aria-label="Programmes à comparer">${checks}</div>
+        <button type="button" class="weekly-refresh" data-weekly-refresh
+          ${canRefresh?'':'disabled'}>${this._weeklyRefreshing?'Actualisation…':'↻ Actualiser'}</button>
+      </div>
+      <div class="weekly-states">${statuses}</div>
+      <div class="weekly-help">Même échelle 24 h pour chaque jour · une ligne par programme sélectionné.</div>
+      <div class="weekly-chart">${axis}<div class="weekly-days">${days}</div></div>
+      ${errors}
+      ${this._weeklyRefreshError?`<p class="weekly-error">Actualisation : ${html(this._weeklyRefreshError)}</p>`:''}
+      <p class="weekly-note">Horaires exacts lus sur la PAC · aucune modification de la programmation.</p>`);
+  }
+  async _refreshWeeklyPrograms(){
+    if(this._weeklyRefreshing)return;
+    const button=Object.values(this._hass?.states||{}).find(st=>
+      st.entity_id.startsWith('button.') &&
+      (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
+    if(!button||button.state==='unavailable')return;
+    this._weeklyRefreshing=true;
+    this._weeklyRefreshError=null;
+    this._render();
+    try {
+      await this._hass.callService('button','press',{entity_id:button.entity_id});
+    } catch(err) {
+      this._weeklyRefreshError=String(err?.message||err);
+    } finally {
+      this._weeklyRefreshing=false;
+      this._render();
+    }
+  }
   _render(){
     // États de déploiement persistants malgré le rafraîchissement des entités HA.
     const prevAlarms=this.shadowRoot.querySelector('details[data-panel="alarms"]')?.open ?? false;
@@ -428,6 +554,7 @@ class PacSynoptiqueCard extends HTMLElement {
         [`C${i} — Rafraîchissement Confort`,`coolComfort${i}`,'°C'],[`C${i} — Rafraîchissement Éco`,`coolEco${i}`,'°C']
       ])
     ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
+    const diagWeekly=this._nativeWeeklyPrograms();
     this.shadowRoot.innerHTML=`<style>
       /* En auto, les palettes proviennent des variables du thème Home Assistant. */
       :host {display:block;
@@ -603,6 +730,65 @@ class PacSynoptiqueCard extends HTMLElement {
       .diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .diag-group{min-width:0;background:var(--surface);padding:13px;border-radius:12px;border:1px solid var(--panel-line)}
       .diag-group h4{margin:0 0 10px;font-size:12px;color:var(--text)}
+      .weekly-toolbar{display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:7px}
+      .weekly-choices{display:flex;gap:6px;flex-wrap:wrap}
+      .weekly-choice{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;
+        border:1px solid var(--panel-line);border-radius:9px;cursor:pointer;
+        font-size:12px;color:var(--text);user-select:none}
+      .weekly-choice.active{background:var(--soft);border-color:var(--blue);font-weight:700}
+      .weekly-choice input{accent-color:var(--blue);width:15px;height:15px;margin:0;cursor:pointer}
+      .weekly-refresh{padding:9px 12px;border:1px solid var(--panel-line);border-radius:9px;
+        background:var(--soft);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+      .weekly-refresh:disabled{opacity:.45;cursor:not-allowed}
+      .weekly-states{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;margin:6px 0}
+      .weekly-state.heat{color:var(--red)}
+      .weekly-state.floor{color:var(--blue)}
+      .weekly-state.water{color:var(--green)}
+      .weekly-state.cool{color:#0891b2}
+      .weekly-state.coolfloor{color:#7c3aed}
+      .weekly-help{font-size:11px;color:var(--sub);margin-bottom:13px}
+      .weekly-chart{--weekly-day-width:34px;--weekly-label-width:48px;--weekly-gap:8px;min-width:0}
+      .weekly-axis{display:grid;grid-template-columns:var(--weekly-day-width) var(--weekly-label-width) minmax(0,1fr);
+        column-gap:var(--weekly-gap);margin:0 0 8px;padding:0 8px}
+      .weekly-axis-ticks{display:flex;justify-content:space-between;
+        font-size:10px;color:var(--sub);font-variant-numeric:tabular-nums}
+      .weekly-days{display:grid;gap:7px}
+      .weekly-day-group{display:grid;grid-template-columns:var(--weekly-day-width) minmax(0,1fr);
+        gap:var(--weekly-gap);align-items:start;border:1px solid var(--panel-line);
+        border-radius:9px;padding:9px 8px}
+      .weekly-day-group:nth-child(odd){background:var(--soft)}
+      .weekly-day{font-size:11px;font-weight:700;padding-top:4px}
+      .weekly-day-lanes{display:grid;gap:8px;min-width:0}
+      .weekly-lane{display:grid;grid-template-columns:var(--weekly-label-width) minmax(0,1fr);
+        gap:var(--weekly-gap);align-items:start;min-width:0;--weekly-accent:var(--blue)}
+      .weekly-lane.heat{--weekly-accent:var(--red)}
+      .weekly-lane.floor{--weekly-accent:var(--blue)}
+      .weekly-lane.water{--weekly-accent:var(--green)}
+      .weekly-lane.cool{--weekly-accent:#0891b2}
+      .weekly-lane.coolfloor{--weekly-accent:#7c3aed}
+      .weekly-lane-label{font-size:11px;font-weight:700;color:var(--weekly-accent);
+        padding-top:4px;overflow-wrap:anywhere}
+      .weekly-lane-body{min-width:0}
+      .weekly-track{height:18px;border:1px solid var(--panel-line);border-radius:5px;
+        position:relative;overflow:hidden;background-color:var(--soft);
+        background-image:linear-gradient(to right,var(--panel-line) 1px,transparent 1px);
+        background-size:4.1666667% 100%}
+      .weekly-slot{position:absolute;top:1px;bottom:1px;background:var(--weekly-accent);
+        border-radius:3px;min-width:2px}
+      .weekly-times{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:4px;
+        font-size:10px;font-variant-numeric:tabular-nums;line-height:1.45}
+      .weekly-range{white-space:nowrap;color:var(--text)}
+      .weekly-empty{color:var(--sub)}
+      .weekly-error{color:var(--warn-text);font-size:11px;overflow-wrap:anywhere}
+      .weekly-note{color:var(--sub);font-size:10px;line-height:1.5;margin:12px 0 0}
+      @media(max-width:520px){
+        .weekly-chart{--weekly-day-width:28px;--weekly-label-width:38px;--weekly-gap:4px}
+        .weekly-day-group{padding:8px 4px}
+        .weekly-axis{padding:0 4px}
+        .weekly-axis-ticks{font-size:9px}
+        .weekly-times{font-size:9px;gap:2px 5px}
+        .weekly-lane-label,.weekly-day{font-size:10px}
+      }
       .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
       .detail-row:last-child{border:0}.detail-row span{color:var(--sub);min-width:0}.detail-row strong{text-align:right;font-weight:700;max-width:58%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
       .detail-row strong.na{color:var(--muted)}
@@ -956,14 +1142,19 @@ class PacSynoptiqueCard extends HTMLElement {
       @keyframes aerienSignal{
         0%,100%{opacity:1}50%{opacity:.52}
       }
-      /* Aérien v2.9.2 : tuyauterie renforcée (sans modifier les autres thèmes). */
+      /* Aérien v2.9.5 : diamètre constant entre conduites et vanne Q3.
+         vector-effect neutralise la déformation due au viewBox étiré des liaisons. */
       :host([data-layout-style="aerien"]) .linksvg path.track{
-        stroke:var(--aerien-tube);stroke-width:8;opacity:.9}
+        stroke:var(--aerien-tube);stroke-width:10;opacity:.9;
+        vector-effect:non-scaling-stroke}
       :host([data-layout-style="aerien"]) .linksvg path.live{
-        stroke-width:4;stroke-dasharray:8 15;
+        stroke-width:10;stroke-dasharray:8 15;
+        vector-effect:non-scaling-stroke;
         animation:flow 2.25s linear infinite}
-      :host([data-layout-style="aerien"]) .v3v-symbol .port{stroke-width:9}
-      :host([data-layout-style="aerien"]) .v3v-symbol .route{stroke-width:6}
+      :host([data-layout-style="aerien"]) .v3v-symbol .port{
+        stroke-width:10;vector-effect:non-scaling-stroke}
+      :host([data-layout-style="aerien"]) .v3v-symbol .route{
+        stroke-width:10;vector-effect:non-scaling-stroke}
       :host([data-layout-style="aerien"]) details{
         border:1px solid var(--aerien-border);border-radius:15px;
         padding:12px 15px;margin-top:9px;background:var(--aerien-panel)}
@@ -1121,10 +1312,21 @@ class PacSynoptiqueCard extends HTMLElement {
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>
         <p class="details-note">Lecture seule. « — » signifie : entité absente, désactivée, inconnue ou non publiée par BSB-LAN. Les températures de départ cibles des circuits ne sont pas des mesures.</p>
-        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}</div>
+        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}${diagWeekly}</div>
       </details>`:''}
 
     </div></ha-card>`;
+    this.shadowRoot.querySelectorAll('[data-program-choice]').forEach(input=>{
+      input.addEventListener('change',()=>{
+        const key=input.dataset.programChoice;
+        if(input.checked)this._visiblePrograms.add(key);
+        else if(this._visiblePrograms.size>1)this._visiblePrograms.delete(key);
+        this._render();
+      });
+    });
+    this.shadowRoot.querySelector('[data-weekly-refresh]')?.addEventListener(
+      'click',()=>this._refreshWeeklyPrograms()
+    );
   }
 }
 /**

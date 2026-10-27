@@ -1,7 +1,7 @@
 /**
- * PAC Synoptique v2.9.6 (intégration V1.5.25 bêta 5) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.7 (intégration V1.5.25 bêta 6) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.25b5
+ * Inclus dans atlantic_alfea_controller 1.5.25b6
  * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
@@ -242,7 +242,7 @@ class PacSynoptiqueCard extends HTMLElement {
     const programSignature=JSON.stringify(Object.values(hass.states).filter(st=>
       st.entity_id.startsWith('sensor.') &&
       st.attributes?.source==='BSB-LAN JSON /JQ' &&
-      ['501','521','561'].includes(String(st.attributes?.parametre_lundi))
+      ['501','521','561','11000','11010'].includes(String(st.attributes?.parametre_lundi))
     ).map(st=>[st.entity_id,st.state,st.attributes?.derniere_importation,st.attributes?.erreur_derniere_lecture]));
     const fullSignature=signature+'|'+programSignature;
     if(changed||fullSignature!==this._lastSignature){this._lastSignature=fullSignature;this._render();}
@@ -347,7 +347,9 @@ class PacSynoptiqueCard extends HTMLElement {
     const programs=[
       {key:'chauffage_c1',base:'501',label:'RDC',title:'Chauffage RDC',tone:'heat'},
       {key:'chauffage_c2',base:'521',label:'Étage',title:'Chauffage étage',tone:'floor'},
-      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire',tone:'water'}
+      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire',tone:'water'},
+      {key:'rafraichissement_c1',base:'11000',label:'Froid RDC',title:'Rafraîchissement RDC',tone:'cool'},
+      {key:'rafraichissement_c2',base:'11010',label:'Froid étage',title:'Rafraîchissement étage',tone:'coolfloor'}
     ];
     const states=Object.values(this._hass?.states||{});
     const sources=new Map(programs.map(p=>[p.key,states.find(st=>
@@ -742,6 +744,8 @@ class PacSynoptiqueCard extends HTMLElement {
       .weekly-state.heat{color:var(--red)}
       .weekly-state.floor{color:var(--blue)}
       .weekly-state.water{color:var(--green)}
+      .weekly-state.cool{color:#0891b2}
+      .weekly-state.coolfloor{color:#7c3aed}
       .weekly-help{font-size:11px;color:var(--sub);margin-bottom:13px}
       .weekly-chart{--weekly-day-width:34px;--weekly-label-width:48px;--weekly-gap:8px;min-width:0}
       .weekly-axis{display:grid;grid-template-columns:var(--weekly-day-width) var(--weekly-label-width) minmax(0,1fr);
@@ -760,6 +764,8 @@ class PacSynoptiqueCard extends HTMLElement {
       .weekly-lane.heat{--weekly-accent:var(--red)}
       .weekly-lane.floor{--weekly-accent:var(--blue)}
       .weekly-lane.water{--weekly-accent:var(--green)}
+      .weekly-lane.cool{--weekly-accent:#0891b2}
+      .weekly-lane.coolfloor{--weekly-accent:#7c3aed}
       .weekly-lane-label{font-size:11px;font-weight:700;color:var(--weekly-accent);
         padding-top:4px;overflow-wrap:anywhere}
       .weekly-lane-body{min-width:0}

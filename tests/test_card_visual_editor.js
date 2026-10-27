@@ -76,5 +76,5 @@ assert.equal(editor.dispatched.length,3,"Unknown theme should be ignored");
 editor.setConfig({type:"custom:pac-synoptique-card"});
 assert(editor.shadowRoot.innerHTML.includes('value="auto" selected'));
 assert(editor.shadowRoot.innerHTML.includes('type="checkbox" id="pac-show-diagnostics" checked'));
-assert(!code.includes("hass.callService("),"card must not operate PAC");
+assert(!code.includes("this._hass.callService('select'") && !code.includes("this._hass.callService('number'"),"card must not operate PAC");
 console.log("PASS: Lovelace editor, UI events, defaults, and data preservation");

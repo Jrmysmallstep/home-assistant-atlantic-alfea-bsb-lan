@@ -1,0 +1,41 @@
+name: Publish v1.5.26b1 pre-release
+
+on:
+  push:
+    branches:
+      - feature/ecs-appoint-json-8821
+    paths:
+      - .github/workflows/prerelease-v1526b1.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prerelease:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check beta manifest and regression tests
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          version=json.loads(Path("custom_components/atlantic_alfea_controller/manifest.json").read_text())["version"]
+          assert version == "1.5.26b1", f"Wrong version: {version}"
+          PY
+          python -m unittest discover -s tests -p 'test_ecs_heater_json.py' -v
+          python -m unittest discover -s tests -p 'test_fault_history_json.py' -v
+      - name: Create pre-release only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.5.26b1 >/dev/null 2>&1; then
+            echo 'Release v1.5.26b1 already exists; no changes.'
+            exit 0
+          fi
+          gh release create v1.5.26b1 \
+            --target "$GITHUB_SHA" \
+            --title "v1.5.26b1 — ECS 8821 + historique défauts" \
+            --prerelease \
+            --notes "Pré-release Home Assistant Atlantic Alféa BSB-LAN. Appoint ECS via JSON 8821, badge ECS sans doublon V3V, historique défauts 6800-6819 dans Alarmes et surveillance. Lecture seule, aucun ajout MQTT. Version de test à valider dans Home Assistant."

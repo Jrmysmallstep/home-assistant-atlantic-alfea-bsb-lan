@@ -1,0 +1,32 @@
+name: Publish stable v1.5.26
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-v1526.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify stable version
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path("custom_components/atlantic_alfea_controller/manifest.json").read_text(encoding="utf-8"))
+          assert data["version"] == "1.5.26", data["version"]
+          PY
+          python -m unittest discover -s tests -p 'test_ecs_heater_json.py' -v
+          python -m unittest discover -s tests -p 'test_fault_history_json.py' -v
+      - name: Publish stable GitHub release if absent
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v1.5.26 >/dev/null 2>&1; then
+            echo "v1.5.26 already exists, leaving release unchanged."
+            exit 0
+          fi
+          gh release create v1.5.26 --target "$GITHUB_SHA" --title "Atlantic Alféa BSB-LAN v1.5.26" --latest --notes "Version stable : appoint électrique ECS (8821) via API JSON, badge ECS sans doublon V3V, historique des 10 derniers défauts (6800–6819) sous Alarmes et surveillance. Aucune écriture PAC et aucune publication MQTT ajoutée. Validée en Home Assistant pour l'appoint inactif et l'historique vide."

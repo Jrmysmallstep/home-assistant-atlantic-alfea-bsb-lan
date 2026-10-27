@@ -27,7 +27,7 @@ assert(Card&&Editor,"card and editor must register");
 const originalMap=src.match(/const FIELDS = \{([\s\S]*?)\n\};/);
 assert(originalMap,"field mapping missing");
 const mapped=(originalMap[1].match(/^\s+[A-Za-z_][\w]*\s*:/gm)||[]);
-assert.equal(mapped.length,65,"65 original entity mappings must remain");
+assert.equal(mapped.length,66,"65 original mappings plus fault history sensor must remain");
 assert(src.includes("ALERTS.filter"),"alarm monitoring unchanged");
 assert(!/<img\b/i.test(src),"external images prohibited");
 assert(!/<image\b/i.test(src),"external SVG image prohibited");

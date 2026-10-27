@@ -18,7 +18,9 @@ from .clock import clock_offset_seconds, clock_source_age_seconds, clock_source_
 from .const import CONF_Q3_DIVERTER_CONFIRMED, DOMAIN, MODE_COOL, MODE_HEAT
 from .helpers import clean_bsb_status, effective_season, is_protection, source_entity, split_bsb_status, state_float, state_is_on, state_value, track_entities
 from .runtime import AlfeaRuntimeMonitor
+from .regime_api import valid_base_url
 from .weekly_programs import PROGRAMS
+from .fault_history_json import parse_fault_history
 
 
 @dataclass(frozen=True)

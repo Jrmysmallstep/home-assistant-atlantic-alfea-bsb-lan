@@ -1299,8 +1299,7 @@ class PacSynoptiqueCard extends HTMLElement {
               <span class="state-dot ${ecsTone}"></span></div>
             <div class="out-values"><div><span>Température ballon</span><strong>${html(temp(ecs.tempBallon))}</strong></div>
               <div><span>Consigne affichée</span><strong>${html(temp(ecs.target))}</strong></div></div>
-            <div class="out-foot">${chip(v3v?v3vLabel:ecs.pump===true?'Sortie Q3 active':ecs.pump===false?'Sortie Q3 inactive':'Sortie Q3 inconnue',v3v?v3vTone:ecs.pump===true?'positive':'dim')}
-              ${ecs.withElectric?chip('Appoint électrique actif','warning'):''}</div>
+            <div class="out-foot">${chip(ecs.electric===true?'Appoint électrique actif':ecs.electric===false?'Appoint électrique inactif':'Appoint électrique indisponible',ecs.electric===true?'warning':ecs.electric===false?'positive':'dim')}</div>
           </section>
         </div>
       </div>

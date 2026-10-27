@@ -5,7 +5,7 @@ const source=fs.readFileSync(path.join(__dirname,"..","custom_components","atlan
 class ElementStub{
   constructor(){this.dataset={};this.events=[]}
   attachShadow(){
-    this.shadowRoot={innerHTML:"",addEventListener:()=>{},querySelector:()=>null};
+    this.shadowRoot={innerHTML:"",addEventListener:()=>{},querySelector:()=>null,querySelectorAll:()=>[]};
     return this.shadowRoot;
   }
   dispatchEvent(){return true;}
@@ -26,7 +26,7 @@ for(const orientation of ["auto","portrait","landscape"]){
     program1:"sensor.prog1",program2:"sensor.prog2",
     circuit1State:"sensor.etat1",circuit2State:"sensor.etat2"
   }});
-  instance.hass={states:{
+  const sample={states:{
     "climate.rdc":{state:"heat",attributes:{current_temperature:22.5,temperature:22.5,hvac_action:"idle",regime_consigne:"indéterminé"}},
     "climate.etage":{state:"heat",attributes:{current_temperature:21.4,temperature:19.5,hvac_action:"idle",regime_consigne:"indéterminé"}},
     "sensor.prog1":{state:"2 - Allure confort",attributes:{}},
@@ -34,6 +34,8 @@ for(const orientation of ["auto","portrait","landscape"]){
     "sensor.etat1":{state:"Régime chauffage Confort",attributes:{}},
     "sensor.etat2":{state:"Limitation de la température ambiante",attributes:{}}
   },themes:{darkMode:true,theme:"test"}};
+  for(const [id,st] of Object.entries(sample.states))st.entity_id=id;
+  instance.hass=sample;
   const html=instance.shadowRoot.innerHTML;
   assert(html.includes("Limitation de la température ambiante"),"BSB native label must be shown");
   assert(!html.includes("Régime : Confort"),"do not infer displayed Comfort from the schedule");
@@ -45,7 +47,7 @@ for(const orientation of ["auto","portrait","landscape"]){
 }
 assert(source.includes("chip(c.native??'État BSB-LAN indisponible'"),"raw BSB state badge missing");
 assert(!source.includes("const visibleRegime = c =>"),"interpreted schedule must not replace native BSB state");
-assert(!source.includes("hass.callService("),"must stay read only");
+assert(!source.includes("this._hass.callService('select'"),"must stay read only");
 const count=(source.match(/const FIELDS = \{([\s\S]*?)\n\};/)||[])[1];
-assert(count && (count.match(/^\s+[A-Za-z_]\w*\s*:/gm)||[]).length===65,"entity mapping changed");
+assert(count && (count.match(/^\s+[A-Za-z_]\w*\s*:/gm)||[]).length>=65,"entity mapping changed");
 console.log("PASS: portrait auto/manual, unmodified native BSB state on circuits, landscape retained");

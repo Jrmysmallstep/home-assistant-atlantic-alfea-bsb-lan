@@ -13,7 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
 from .clock import async_start_clock_polling
@@ -118,6 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 return
             # MQTT callbacks can run off the HA event-loop thread. Schedule
             # both the cache update and dispatcher signal onto the HA loop.
+            @callback
             def _notify_on_loop() -> None:
                 current = feedback.get(entry.entry_id)
                 if current is None:
@@ -147,6 +148,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         else:
             return
 
+        @callback
         def _notify_on_loop() -> None:
             if entry.entry_id not in v3v_feedback:
                 return
@@ -187,6 +189,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             mqtt_unsubscribers.extend(subscriptions)
             mqtt_subscribed = True
 
+    @callback
     def _mqtt_component_loaded(event) -> None:
         if event.data.get("component") == "mqtt":
             hass.async_create_task(_subscribe_feedback())

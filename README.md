@@ -40,6 +40,27 @@ version publiée demeure V1.5.22 jusqu'à validation et publication.**
 
 
 
+## Préversion V1.5.25b6 — programmes natifs de rafraîchissement (synoptique V2.9.7)
+
+Lecture **réelle validée sur PAC Atlantic Alféa Extensa Duo** le 27 octobre 2026 :
+14 réponses JSON `/JQ` sans erreur, pour les sept jours des deux circuits.
+
+- **Rafraîchissement RDC** : `11000` à `11006`, 10:30–20:30 sur les sept jours.
+- **Rafraîchissement étage** : `11010` à `11016`, 11:30–21:30 sur les sept jours.
+- Deux nouveaux capteurs de diagnostic, avec `jours`, `derniere_importation` et état d'erreur.
+- Le synoptique propose deux cases supplémentaires **Froid RDC** et **Froid étage**,
+  désactivées par défaut pour préserver la comparaison initiale RDC/Étage/ECS.
+- La carte autonome `pac-programmes-card` dispose de cinq onglets.
+- Le bouton d'actualisation lit désormais **35 journées** via HTTP `/JQ`,
+  avec une pause de 200 ms entre lectures ; **aucune écriture /JS** et
+  aucun nouveau paramètre MQTT.
+- Cette version est **en développement**, à tester dans Home Assistant.
+  Ne pas fusionner la PR brouillon avant validation du rendu réel.
+
+**Préversion à créer pour HACS** : `v1.5.25b6`, Target
+`feature/native-weekly-programs-readonly`, « Set as a pre-release ».
+Ne pas utiliser `main`.
+
 ## Préversion V1.5.25b5 — comparaison regroupée par jour (synoptique V2.9.6)
 
 À la demande de l'utilisateur, les trois calendriers séparés de la bêta 3
@@ -124,10 +145,10 @@ le régulateur de la PAC.
 **Prérequis** : dans les options de l'intégration, renseigner
 **Adresse BSB-LAN JSON** avec l'adresse HTTP(S) de BSB-LAN.
 Le bouton de diagnostic **« Programmes natifs - Actualiser »** lance
-explicitement 21 lectures JSON `/JQ=...` (espacées de 200 ms).
+explicitement 35 lectures JSON `/JQ=...` (espacées de 200 ms).
 Aucune lecture automatique au démarrage ni publication MQTT supplémentaire.
 
-Trois capteurs de diagnostic présentent ensuite un état `Chargé`, `Erreur`
+Cinq capteurs de diagnostic présentent ensuite un état `Chargé`, `Erreur`
 ou `Non chargé`, ainsi que les plages par jour dans l'attribut `jours` :
 
 | Capteur | Lundi | Mardi à dimanche |
@@ -135,6 +156,8 @@ ou `Non chargé`, ainsi que les plages par jour dans l'attribut `jours` :
 | Programme natif - Chauffage RDC | 501 | 501.1 à 501.6 |
 | Programme natif - Chauffage étage | 521 | 521.1 à 521.6 |
 | Programme natif - Eau chaude sanitaire | 561 | 561.1 à 561.6 |
+| Programme natif - Rafraîchissement RDC | 11000 | 11001 à 11006 |
+| Programme natif - Rafraîchissement étage | 11010 | 11011 à 11016 |
 
 Chaque jour comporte jusqu'à trois créneaux `debut` / `fin` ;
 `##:##-##:##` représente une plage inactive.
@@ -149,8 +172,8 @@ Dans **Diagnostics et capteurs complémentaires**, le synoptique comporte
 désormais un bloc **« Programmes horaires natifs · Lecture seule »** dans la
 **deuxième colonne**, à côté de « Circuits 1 & 2 / programmation ».
 
-Trois onglets **RDC / Étage / ECS** affichent chacun les sept jours de la
-semaine avec une frise 24 heures et les créneaux Confort programmés. Le
+Cinq programmes sélectionnables **Chauffage RDC / Chauffage étage / ECS / Froid RDC / Froid étage**
+s'affichent sur une même frise hebdomadaire 24 heures, avec une ligne par programme sélectionné. Le
 programme ECS est bien inclus (paramètres 561 à 561.6).
 Les valeurs proviennent exclusivement des capteurs de l'importateur BSB-LAN,
 et sont actualisées lorsque le bouton de diagnostic
@@ -165,7 +188,7 @@ désormais la visualisation demandée.
 ### Carte hebdomadaire Lovelace (prototype)
 
 L'intégration expose également une carte `pac-programmes-card` :
-trois onglets (chauffage RDC, étage, ECS), sept jours, frise 24 h,
+cinq onglets (chauffage RDC, étage, ECS, rafraîchissement RDC, étage), sept jours, frise 24 h,
 jusqu'à trois plages par jour et bouton d'actualisation.
 Les entités sont détectées par leur paramètre source, ou peuvent être
 renseignées explicitement si plusieurs installations coexistent.
@@ -173,7 +196,7 @@ renseignées explicitement si plusieurs installations coexistent.
 Ajouter la ressource JavaScript **module** dans
 Paramètres → Tableaux de bord → Ressources :
 
-`/alfea-synoptique/pac-programmes-card.js?v=1.5.25`
+`/alfea-synoptique/pac-programmes-card.js?v=1.5.25b6`
 
 Puis créer une carte manuelle :
 
@@ -182,15 +205,15 @@ type: custom:pac-programmes-card
 title: Programmes horaires PAC
 ```
 
-Optionnellement, préciser `chauffage_c1`, `chauffage_c2`, `ecs` et
-`refresh_button` avec les identifiants d'entité correspondants.
+Optionnellement, préciser `chauffage_c1`, `chauffage_c2`, `ecs`,
+`rafraichissement_c1`, `rafraichissement_c2` et `refresh_button` avec les identifiants d'entité correspondants.
 **Attention :** il s'agit d'un prototype non encore testé sur la PAC réelle.
 
-Les programmes de **rafraîchissement C1/C2** seront intégrés après validation
-de leur lecture via l'API JSON : les trames bus identifiées ne constituent pas
-encore des paramètres `/JQ` confirmés.
+Les programmes de **rafraîchissement C1/C2** ont été validés via les
+14 paramètres JSON `/JQ=11000…11006` et `/JQ=11010…11016`.
+Ils sont importés uniquement en lecture seule, à la demande.
 
-**Essais requis avant publication** : vérifier les 21 réponses réelles de
+**Essais requis avant publication** : vérifier les 35 réponses réelles de
 BSB-LAN, la correspondance des jours, l'absence de commandes /JS et les
 capteurs dans Outils de développement → États. Cette branche n'est pas une
 release HACS.

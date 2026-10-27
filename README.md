@@ -2,8 +2,219 @@
 
 Intégration personnalisée Home Assistant pour piloter et surveiller une pompe à chaleur **Atlantic Alféa Extensa Duo** via **BSB-LAN**.
 
-> Dernière version publiée : **1.5.22**
+> Version stable : **1.5.25** — Synoptique V2.9.7, programmes natifs chauffage, ECS et rafraîchissement.
 
+## Inclus dans V1.5.25 — V3V Q3 / synoptique
+
+Sur une Alféa équipée d'une **vanne de dérivation ECS Q3** (paramètre
+BSB-LAN **5731 = 2**), le paramètre **8820** correspond à la commande Q3 :
+**1 → A / ECS**, **0 → B / chauffage**. Ces deux états ont été contrôlés
+visuellement sur l'installation de référence le 26 octobre 2026.
+
+- Nouveau capteur **« V3V - Commande »** : état `ECS` ou `Chauffage`,
+  attribut `position_commandee` A/B. Il est **en lecture seule** et ne
+  constitue **pas un retour de position mécanique**.
+- La carte synoptique **V2.9.1** affiche le symbole hydraulique Q3 et la
+  branche sélectionnée. L'animation des flux exige en plus des états
+  de fonctionnement confirmés. Les mises en page portrait et Aérien sont prises
+  en charge ; le badge reste visible en présentation Épurée.
+- **Prérequis** : seul le paramètre **8820** doit être publié en continu dans
+  Home Assistant. Pour éviter de dépasser la limite des 40 paramètres MQTT,
+  activer **Configurer → Options → « Q3 est une vanne 3 voies ECS
+  (5731 = 2) »** après avoir vérifié cette valeur une fois sur la PAC.
+  Le paramètre 5731 n'a donc **pas besoin** d'être ajouté à la liste MQTT.
+  Si une entité 5731 existe malgré tout, sa valeur réelle prévaut sur l'option.
+  Si ni 5731 ni la confirmation manuelle ne sont disponibles, le capteur
+  V3V reste indisponible.
+- **V1.5.24 (correctif)** : le statut de commande 8820 est également écouté
+  directement sur `BSB-LAN/+/+/8820/status` : aucune entité MQTT-discovery
+  n'est nécessaire. L'attribut `source_commande` précise si l'information
+  vient d'une entité Home Assistant ou du MQTT direct. La confirmation
+  `q3_diverter_confirmed` reste indispensable en l'absence de 5731.
+- Le capteur historique **« ECS - Pompe »** est conservé pour la compatibilité
+  des installations existantes ; dans le synoptique, sa sortie 8820 est
+  présentée comme **Q3** ou **V3V** selon les données disponibles.
+
+**Cette évolution fait partie de la version stable V1.5.25.**
+
+
+
+## Version stable V1.5.25 — programmes natifs de rafraîchissement (synoptique V2.9.7)
+
+Lecture **réelle validée sur PAC Atlantic Alféa Extensa Duo** le 27 octobre 2026 :
+14 réponses JSON `/JQ` sans erreur, pour les sept jours des deux circuits.
+
+- **Rafraîchissement RDC** : `11000` à `11006`, 10:30–20:30 sur les sept jours.
+- **Rafraîchissement étage** : `11010` à `11016`, 11:30–21:30 sur les sept jours.
+- Deux nouveaux capteurs de diagnostic, avec `jours`, `derniere_importation` et état d'erreur.
+- Le synoptique propose deux cases supplémentaires **Froid RDC** et **Froid étage**,
+  désactivées par défaut pour préserver la comparaison initiale RDC/Étage/ECS.
+- La carte autonome `pac-programmes-card` dispose de cinq onglets.
+- Le bouton d'actualisation lit désormais **35 journées** via HTTP `/JQ`,
+  avec une pause de 200 ms entre lectures ; **aucune écriture /JS** et
+  aucun nouveau paramètre MQTT.
+- Cette version est **en développement**, à tester dans Home Assistant.
+  Ne pas fusionner la PR brouillon avant validation du rendu réel.
+
+**Publication stable** : tag `v1.5.25` sur `main`, release GitHub normale
+(non préversion), après fusion de la branche `release/v1.5.25`.
+
+## Préversion V1.5.25b5 — comparaison regroupée par jour (synoptique V2.9.6)
+
+À la demande de l'utilisateur, les trois calendriers séparés de la bêta 3
+ont été réunis dans **un seul graphique hebdomadaire** :
+
+- **Sept groupes : lundi à dimanche**, avec une seule graduation 0–24 h commune.
+- Chaque jour affiche **une ligne par programme coché** (RDC, étage, ECS),
+  sur la même échelle, les uns sous les autres, **sans superposition**.
+- Les horaires de chaque plage restent visibles à la minute sous la ligne.
+- Les couleurs et les cases à cocher sont conservées, ainsi que le bouton
+  **↻ Actualiser** placé à côté.
+- Les 3 programmes sélectionnés produisent 21 lignes ; 2 programmes,
+  14 lignes ; un programme, 7 lignes. Le graphique conserve toujours
+  exactement **7 jours** et une seule graduation.
+- Les correctifs des bêtas précédentes (MQTT, diamètre des tuyaux Aérien)
+  restent inclus.
+
+**Préversion de test :** tag `v1.5.25b5` sur
+`feature/native-weekly-programs-readonly`, avec « Set as a pre-release ».
+Rendu final à valider dans Home Assistant.
+
+## Préversion V1.5.25b4 — tuyauterie homogène (synoptique V2.9.5)
+
+Suite à une capture du raccordement de la vanne 3 voies Q3,
+le thème **Aérien** applique désormais une épaisseur visible de
+**10 px** aux conduites SVG, aux raccords gris de Q3 et aux chemins
+colorés actifs. La propriété SVG `vector-effect: non-scaling-stroke`
+empêche l'étirement des frises SVG de déformer les diamètres des
+segments horizontaux et verticaux. Les autres styles et les
+fonctionnalités BSB-LAN restent inchangés.
+
+**Tag à créer pour tester :** `v1.5.25b4` sur
+`feature/native-weekly-programs-readonly`, en préversion GitHub.
+Le rendu doit encore être vérifié sur le synoptique réel.
+
+## Préversion V1.5.25b3 — comparaison des horaires (synoptique V2.9.4)
+
+Suite au premier essai réel de la bêta 1, la visualisation intégrée
+dans « Diagnostics et capteurs complémentaires » a été repensée :
+
+- **Cases à cocher RDC, Étage et ECS** : afficher un, deux ou trois
+  programmes simultanément (au moins un doit rester coché).
+- **Chaque programme possède ses propres sept frises horaires** ;
+  aucune superposition de circuits sur une même ligne.
+- Frises graduées de 0 h à 24 h, repères toutes les heures et
+  étiquettes toutes les 3 heures ; chaque créneau est aussi indiqué
+  avec ses heures et minutes exactes.
+- **Bouton « ↻ Actualiser » dans la même ligne que les cases à cocher**,
+  relié au bouton de lecture BSB-LAN déjà créé par l'intégration.
+- Trois couleurs pour distinguer chauffage RDC, étage et ECS.
+- La bêta 3 contient aussi le correctif de démarrage MQTT de la bêta 2.
+
+**Tag de préversion à publier :** `v1.5.25b3` depuis
+`feature/native-weekly-programs-readonly` (et non `main`).
+La bêta 1 déjà installée reste inchangée jusqu'à mise à jour via HACS.
+
+## Correctif de préversion V1.5.25b2 — démarrage MQTT
+
+La bêta 1 pouvait échouer à l'initialisation avec
+`mqtt_not_setup_cannot_subscribe` si les abonnements directs aux
+circulateurs (9031/8760) et à la vanne Q3 (8820) étaient créés avant que
+Home Assistant ait initialisé MQTT.
+
+La bêta 2 déclare `mqtt` comme dépendance à initialiser avant
+l'intégration lorsqu'elle est disponible (`after_dependencies`),
+diffère les abonnements jusqu'au chargement du composant, et laisse
+les autres entités ainsi que l'importation HTTP des programmes se
+charger même si MQTT est temporairement absent. Aucune publication
+MQTT ni commande BSB supplémentaire.
+
+**Préversion à publier :** tag `v1.5.25b2` sur la branche
+`feature/native-weekly-programs-readonly`, avec l'option GitHub
+« Set as a pre-release ». Ne pas réutiliser le tag bêta 1.
+
+## En développement — importation des programmes natifs (V1.5.25)
+
+La branche `feature/native-weekly-programs-readonly` ajoute une première
+importation **en lecture seule**, indépendante des 40 paramètres MQTT.
+Aucune programmation n'est écrite et Home Assistant ne remplace pas
+le régulateur de la PAC.
+
+**Prérequis** : dans les options de l'intégration, renseigner
+**Adresse BSB-LAN JSON** avec l'adresse HTTP(S) de BSB-LAN.
+Le bouton de diagnostic **« Programmes natifs - Actualiser »** lance
+explicitement 35 lectures JSON `/JQ=...` (espacées de 200 ms).
+Aucune lecture automatique au démarrage ni publication MQTT supplémentaire.
+
+Cinq capteurs de diagnostic présentent ensuite un état `Chargé`, `Erreur`
+ou `Non chargé`, ainsi que les plages par jour dans l'attribut `jours` :
+
+| Capteur | Lundi | Mardi à dimanche |
+| --- | --- | --- |
+| Programme natif - Chauffage RDC | 501 | 501.1 à 501.6 |
+| Programme natif - Chauffage étage | 521 | 521.1 à 521.6 |
+| Programme natif - Eau chaude sanitaire | 561 | 561.1 à 561.6 |
+| Programme natif - Rafraîchissement RDC | 11000 | 11001 à 11006 |
+| Programme natif - Rafraîchissement étage | 11010 | 11011 à 11016 |
+
+Chaque jour comporte jusqu'à trois créneaux `debut` / `fin` ;
+`##:##-##:##` représente une plage inactive.
+Une semaine est mise à jour uniquement si ses sept jours ont été lus et
+validés. En cas d'erreur, le capteur affiche `Erreur` et conserve sa
+dernière importation horodatée pour diagnostic (elle ne doit pas être
+interprétée comme une lecture récente).
+
+### Visualisation intégrée dans le synoptique (V1.5.25)
+
+Dans **Diagnostics et capteurs complémentaires**, le synoptique comporte
+désormais un bloc **« Programmes horaires natifs · Lecture seule »** dans la
+**deuxième colonne**, à côté de « Circuits 1 & 2 / programmation ».
+
+Cinq programmes sélectionnables **Chauffage RDC / Chauffage étage / ECS / Froid RDC / Froid étage**
+s'affichent sur une même frise hebdomadaire 24 heures, avec une ligne par programme sélectionné. Le
+programme ECS est bien inclus (paramètres 561 à 561.6).
+Les valeurs proviennent exclusivement des capteurs de l'importateur BSB-LAN,
+et sont actualisées lorsque le bouton de diagnostic
+**« Programmes natifs - Actualiser »** est pressé.
+Aucun changement de configuration de la carte synoptique existante n'est
+nécessaire. Si les capteurs ne sont pas encore chargés, le panneau indique
+« Non chargé » au lieu d'inventer des horaires.
+
+La carte autonome ci-dessous reste facultative : le synoptique contient
+désormais la visualisation demandée.
+
+### Carte hebdomadaire Lovelace (prototype)
+
+L'intégration expose également une carte `pac-programmes-card` :
+cinq onglets (chauffage RDC, étage, ECS, rafraîchissement RDC, étage), sept jours, frise 24 h,
+jusqu'à trois plages par jour et bouton d'actualisation.
+Les entités sont détectées par leur paramètre source, ou peuvent être
+renseignées explicitement si plusieurs installations coexistent.
+
+Ajouter la ressource JavaScript **module** dans
+Paramètres → Tableaux de bord → Ressources :
+
+`/alfea-synoptique/pac-programmes-card.js?v=1.5.25b6`
+
+Puis créer une carte manuelle :
+
+```yaml
+type: custom:pac-programmes-card
+title: Programmes horaires PAC
+```
+
+Optionnellement, préciser `chauffage_c1`, `chauffage_c2`, `ecs`,
+`rafraichissement_c1`, `rafraichissement_c2` et `refresh_button` avec les identifiants d'entité correspondants.
+**Attention :** il s'agit d'un prototype non encore testé sur la PAC réelle.
+
+Les programmes de **rafraîchissement C1/C2** ont été validés via les
+14 paramètres JSON `/JQ=11000…11006` et `/JQ=11010…11016`.
+Ils sont importés uniquement en lecture seule, à la demande.
+
+**Essais requis avant publication** : vérifier les 35 réponses réelles de
+BSB-LAN, la correspondance des jours, l'absence de commandes /JS et les
+capteurs dans Outils de développement → États. Cette branche n'est pas une
+release HACS.
 
 ## Synoptique Aérien (V1.5.22)
 

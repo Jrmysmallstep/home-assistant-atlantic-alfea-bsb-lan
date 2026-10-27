@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import asyncio
+import logging
 
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.components.mqtt import async_subscribe
+from homeassistant.const import EVENT_COMPONENT_LOADED
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from homeassistant.config_entries import ConfigEntry
@@ -17,6 +21,9 @@ from .const import DOMAIN, PLATFORMS
 from .discovery import discover_mapping
 from .runtime import AlfeaRuntimeMonitor
 from .polling import async_start_data_polling
+from .weekly_programs import WeeklyProgramImporter
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
@@ -31,7 +38,12 @@ async def async_setup(hass: HomeAssistant, _config: dict) -> bool:
                 "/alfea-synoptique/pac-synoptique-card.js",
                 str(Path(__file__).resolve().parent / "www" / "pac-synoptique-card.js"),
                 False,
-            )
+            ),
+            StaticPathConfig(
+                "/alfea-synoptique/pac-programmes-card.js",
+                str(Path(__file__).resolve().parent / "www" / "pac-programmes-card.js"),
+                False,
+            ),
         ]
     )
     return True
@@ -91,6 +103,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(_clear_pump_feedback)
 
+    pump_handlers = []
     for circuit, parameter in ((1, 9031), (2, 8760)):
         def _handle_pump(message, *, _circuit=circuit):
             payload = message.payload
@@ -114,10 +127,90 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
             hass.add_job(_notify_on_loop)
 
-        unsub = await async_subscribe(
-            hass, f"BSB-LAN/+/+/{parameter}/status", _handle_pump, qos=0
-        )
-        entry.async_on_unload(unsub)
+        pump_handlers.append((f"BSB-LAN/+/+/{parameter}/status", _handle_pump))
+
+    # Q3 command (8820): like pump feedback, this can be published on MQTT
+    # without creating a Home Assistant entity via MQTT discovery.
+    v3v_feedback = hass.data.setdefault(DOMAIN, {}).setdefault("v3v_feedback", {})
+    v3v_feedback[entry.entry_id] = None
+    entry.async_on_unload(lambda: v3v_feedback.pop(entry.entry_id, None))
+
+    def _handle_v3v(message) -> None:
+        payload = message.payload
+        if isinstance(payload, bytes):
+            payload = payload.decode("utf-8", errors="replace")
+        value = str(payload).strip().lower()
+        if value in ("1", "on", "true", "activé") or value.startswith("1 -"):
+            commanded_ecs = True
+        elif value in ("0", "off", "false", "désactivé") or value.startswith("0 -"):
+            commanded_ecs = False
+        else:
+            return
+
+        def _notify_on_loop() -> None:
+            if entry.entry_id not in v3v_feedback:
+                return
+            v3v_feedback[entry.entry_id] = commanded_ecs
+            async_dispatcher_send(hass, f"{DOMAIN}_v3v_feedback_{entry.entry_id}")
+
+        hass.add_job(_notify_on_loop)
+
+    # MQTT peut ne pas être prêt lors du démarrage de HA. L'abonnement
+    # n'est pas une condition pour charger l'intégration ni les programmes.
+    # Réessayer quand le composant MQTT termine son initialisation.
+    mqtt_topics = [
+        *pump_handlers,
+        ("BSB-LAN/+/+/8820/status", _handle_v3v),
+    ]
+    mqtt_lock = asyncio.Lock()
+    mqtt_subscribed = False
+    mqtt_unsubscribers = []
+
+    async def _subscribe_feedback() -> None:
+        nonlocal mqtt_subscribed
+        async with mqtt_lock:
+            if mqtt_subscribed or "mqtt" not in hass.data:
+                return
+            subscriptions = []
+            try:
+                for topic, handler in mqtt_topics:
+                    subscriptions.append(
+                        await async_subscribe(hass, topic, handler, qos=0)
+                    )
+            except HomeAssistantError as err:
+                for unsubscribe in subscriptions:
+                    unsubscribe()
+                _LOGGER.warning(
+                    "Abonnements MQTT BSB-LAN reportés : %s", err
+                )
+                return
+            mqtt_unsubscribers.extend(subscriptions)
+            mqtt_subscribed = True
+
+    def _mqtt_component_loaded(event) -> None:
+        if event.data.get("component") == "mqtt":
+            hass.async_create_task(_subscribe_feedback())
+
+    unsubscribe_event = hass.bus.async_listen(
+        EVENT_COMPONENT_LOADED, _mqtt_component_loaded
+    )
+    entry.async_on_unload(unsubscribe_event)
+
+    def _clear_mqtt_subscriptions() -> None:
+        for unsubscribe in mqtt_unsubscribers:
+            unsubscribe()
+        mqtt_unsubscribers.clear()
+
+    entry.async_on_unload(_clear_mqtt_subscriptions)
+    await _subscribe_feedback()
+
+    # Import des programmes à la demande, indépendant des 40 publications MQTT.
+    # Aucun appel HTTP au démarrage : seul le bouton explicite déclenche /JQ.
+    programs = hass.data.setdefault(DOMAIN, {}).setdefault("weekly_programs", {})
+    programs[entry.entry_id] = WeeklyProgramImporter(
+        hass, entry.entry_id, entry.options.get("bsb_base_url", "")
+    )
+    entry.async_on_unload(lambda: programs.pop(entry.entry_id, None))
 
     monitor = AlfeaRuntimeMonitor(hass, entry)
     entry.runtime_data = monitor

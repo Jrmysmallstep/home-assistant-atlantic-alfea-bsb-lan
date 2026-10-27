@@ -44,6 +44,10 @@ CONF_DHW_STATE: Final = "dhw_state"
 CONF_DHW_TEMPERATURE: Final = "dhw_temperature"
 CONF_DHW_ELECTRIC_HEATER: Final = "dhw_electric_heater"
 CONF_DHW_PUMP: Final = "dhw_pump"
+CONF_DHW_Q3_TYPE: Final = "dhw_q3_type"
+# Opt-in: the installation has a Q3 three-way diverter (BSB 5731 = 2),
+# confirmed locally without continuously publishing parameter 5731.
+CONF_Q3_DIVERTER_CONFIRMED: Final = "q3_diverter_confirmed"
 
 CONF_PAC_STATE: Final = "pac_state"
 CONF_COMPRESSOR_STATE: Final = "compressor_state"

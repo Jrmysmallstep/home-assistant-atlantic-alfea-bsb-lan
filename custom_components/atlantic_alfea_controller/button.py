@@ -17,6 +17,7 @@ from .clock import async_sync_pac_clock, clock_is_writable, clock_source_ids
 from .const import DOMAIN
 from .helpers import async_select_option, source_entity, track_entities
 from .polling import async_poll_parameters
+from .weekly_programs import PROGRAMS
 
 
 _OVERRIDE = {
@@ -31,7 +32,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up clock and native-override control buttons."""
-    entities: list[ButtonEntity] = []
+    entities: list[ButtonEntity] = [AlfeaRefreshWeeklyProgramsButton(hass, entry)]
 
     if all(clock_source_ids(hass, entry)):
         entities.append(AlfeaSyncClockButton(hass, entry))
@@ -46,6 +47,38 @@ async def async_setup_entry(
 
     if entities:
         async_add_entities(entities)
+
+
+class AlfeaRefreshWeeklyProgramsButton(ButtonEntity):
+    """Explicit read-only refresh of the PAC's three native weekly schedules."""
+
+    _attr_has_entity_name = True
+    _attr_name = "Programmes natifs - Actualiser"
+    _attr_icon = "mdi:calendar-refresh"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        self.hass = hass
+        self._entry = entry
+        self._attr_unique_id = f"{entry.entry_id}_refresh_weekly_programs"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, entry.entry_id)})
+
+    def _importer(self):
+        return self.hass.data.get(DOMAIN, {}).get("weekly_programs", {}).get(self._entry.entry_id)
+
+    @property
+    def available(self) -> bool:
+        importer = self._importer()
+        return importer is not None and importer.configured
+
+    async def async_press(self) -> None:
+        importer = self._importer()
+        if importer is None or not importer.configured:
+            raise HomeAssistantError("Configurer l'adresse BSB-LAN JSON dans les options.")
+        errors = await importer.async_refresh_all()
+        if errors:
+            details = "; ".join(f"{PROGRAMS[key][0]} : {error}" for key, error in errors.items())
+            raise HomeAssistantError(f"Importation partielle des programmes : {details}")
 
 
 class AlfeaSyncClockButton(ButtonEntity):

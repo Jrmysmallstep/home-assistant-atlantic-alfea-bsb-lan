@@ -1,8 +1,8 @@
 /**
- * PAC Synoptique v2.9.0 (intégration V1.5.22) — Atlantic Alféa Extensa Duo / BSB-LAN
+ * PAC Synoptique v2.9.7 (intégration V1.5.25 stable) — Atlantic Alféa Extensa Duo / BSB-LAN
  * Home Assistant Lovelace custom card (sans dependance) • lecture seule
- * Inclus dans atlantic_alfea_controller 1.5.22
- * Aucun appel de service Home Assistant, aucune commande à la PAC.
+ * Inclus dans atlantic_alfea_controller 1.5.25
+ * Lecture seule des programmes PAC ; bouton HA d'importation JSON à la demande.
  */
 (() => {
 'use strict';
@@ -56,6 +56,7 @@ const FIELDS = {
   ecsComfort:      ['sensor','ECS - T. Confort'],
   ecsEco:          ['sensor','ECS - T. Éco'],
   ecsPump:         ['binary_sensor','ECS - Pompe'],
+  v3v:             ['sensor','V3V - Commande'],
   ecsElectric:     ['binary_sensor','ECS - Appoint électrique'],
   compressorHours: ['sensor','COMP - Heures de fonctionnement'],
   compressorStarts:['sensor','COMP - Nombre de démarrages'],
@@ -180,6 +181,9 @@ class PacSynoptiqueCard extends HTMLElement {
     this._lastDiscovery=0;
     this._resolvedThemeMode=null;
     this._lastThemeName=null;
+    this._visiblePrograms=new Set(['chauffage_c1','chauffage_c2','ecs']);
+    this._weeklyRefreshing=false;
+    this._weeklyRefreshError=null;
   }
   static getStubConfig() {return {theme_mode:'auto',layout_orientation:'auto',show_diagnostics:true};}
   static getConfigElement() {return document.createElement(EDITOR_TAG);}
@@ -233,7 +237,15 @@ class PacSynoptiqueCard extends HTMLElement {
         st?.attributes?.temperature,st?.attributes?.production,st?.attributes?.regime_consigne,
         st?.attributes?.phase_apprentissage,st?.attributes?.pompe_ecs,st?.attributes?.appoint_electrique];
     }));
-    if(changed||signature!==this._lastSignature){this._lastSignature=signature;this._render();}
+    // Les programmes natifs sont des capteurs à la demande : inclure leur
+    // état et leur horodatage dans la signature pour rafraîchir le synoptique.
+    const programSignature=JSON.stringify(Object.values(hass.states).filter(st=>
+      st.entity_id.startsWith('sensor.') &&
+      st.attributes?.source==='BSB-LAN JSON /JQ' &&
+      ['501','521','561','11000','11010'].includes(String(st.attributes?.parametre_lundi))
+    ).map(st=>[st.entity_id,st.state,st.attributes?.derniere_importation,st.attributes?.erreur_derniere_lecture]));
+    const fullSignature=signature+'|'+programSignature;
+    if(changed||fullSignature!==this._lastSignature){this._lastSignature=fullSignature;this._render();}
   }
   _discover(){
     const states=this._hass?.states||{};
@@ -331,6 +343,121 @@ class PacSynoptiqueCard extends HTMLElement {
     return `<div class="detail-row"><span>${html(label)}</span><strong class="${!st||raw==null?'na':''}">${html(value)}</strong></div>`;
   }
   _diagGroup(title,body){return `<section class="diag-group"><h4>${html(title)}</h4>${body}</section>`;}
+  _nativeWeeklyPrograms(){
+    const programs=[
+      {key:'chauffage_c1',base:'501',label:'RDC',title:'Chauffage RDC',tone:'heat'},
+      {key:'chauffage_c2',base:'521',label:'Étage',title:'Chauffage étage',tone:'floor'},
+      {key:'ecs',base:'561',label:'ECS',title:'Eau chaude sanitaire',tone:'water'},
+      {key:'rafraichissement_c1',base:'11000',label:'Froid RDC',title:'Rafraîchissement RDC',tone:'cool'},
+      {key:'rafraichissement_c2',base:'11010',label:'Froid étage',title:'Rafraîchissement étage',tone:'coolfloor'}
+    ];
+    const states=Object.values(this._hass?.states||{});
+    const sources=new Map(programs.map(p=>[p.key,states.find(st=>
+      st.entity_id.startsWith('sensor.') &&
+      st.attributes?.source==='BSB-LAN JSON /JQ' &&
+      String(st.attributes?.parametre_lundi)===p.base
+    )]));
+    const button=states.find(st=>st.entity_id.startsWith('button.') &&
+      (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
+    const canRefresh=button && button.state!=='unavailable' && !this._weeklyRefreshing;
+    const weekdays=[
+      ['lundi','Lun'],['mardi','Mar'],['mercredi','Mer'],['jeudi','Jeu'],
+      ['vendredi','Ven'],['samedi','Sam'],['dimanche','Dim']
+    ];
+    const time=value=>{
+      if(typeof value!=='string'||!/^\d{2}:\d{2}$/.test(value))return null;
+      const [h,m]=value.split(':').map(Number);
+      return h<=24&&m<60&&(h<24||m===0)?h*60+m:null;
+    };
+    const selected=programs.filter(p=>this._visiblePrograms.has(p.key));
+    const checks=programs.map(p=>{
+      const checked=this._visiblePrograms.has(p.key);
+      const source=sources.get(p.key);
+      const status=source?.state||'Non chargé';
+      return `<label class="weekly-choice ${p.tone} ${checked?'active':''}"
+        title="${html(p.title)} · ${html(status)}">
+        <input type="checkbox" data-program-choice="${p.key}" ${checked?'checked':''}
+          aria-label="Afficher ${html(p.title)}">
+        <span>${html(p.label)}</span></label>`;
+    }).join('');
+    // Une seule graduation commune à toutes les lignes et tous les jours.
+    const axis=`<div class="weekly-axis"><span></span><span></span>
+      <div class="weekly-axis-ticks">
+        ${Array.from({length:9},(_,i)=>`<span>${i*3}h</span>`).join('')}
+      </div></div>`;
+    const days=weekdays.map(([day,label])=>{
+      const lanes=selected.map(p=>{
+        const source=sources.get(p.key);
+        const ranges=Array.isArray(source?.attributes?.jours?.[day])
+          ? source.attributes.jours[day] : null;
+        const bars=(ranges||[]).map(range=>{
+          const start=time(range.debut),end=time(range.fin);
+          if(start===null||end===null||end<=start)return '';
+          const left=(start/1440*100).toFixed(4);
+          const width=((end-start)/1440*100).toFixed(4);
+          const label=html(p.title+' : '+range.debut+' – '+range.fin);
+          return `<span class="weekly-slot" style="left:${left}%;width:${width}%"
+            title="${label}" aria-label="${label}"></span>`;
+        }).join('');
+        const rangesText=ranges===null?'<span class="weekly-empty">Non chargé</span>':
+          ranges.length===0?'<span class="weekly-empty">Aucune plage</span>':
+          ranges.map(range=>`<span class="weekly-range">
+            ${html(range.debut)}–${html(range.fin)}</span>`).join('');
+        return `<div class="weekly-lane ${p.tone}">
+          <span class="weekly-lane-label" title="${html(p.title)}">${html(p.label)}</span>
+          <div class="weekly-lane-body">
+            <div class="weekly-track">${bars}</div>
+            <div class="weekly-times">${rangesText}</div>
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="weekly-day-group">
+        <span class="weekly-day">${label}</span>
+        <div class="weekly-day-lanes">${lanes}</div>
+      </div>`;
+    }).join('');
+    const statuses=selected.map(p=>{
+      const source=sources.get(p.key);
+      const date=source?.attributes?.derniere_importation;
+      const error=source?.attributes?.erreur_derniere_lecture;
+      return `<span class="weekly-state ${p.tone}" title="${date?'Importé le '+html(date.replace('T',' ')):'Aucune importation'}">
+        ${html(p.label)} : ${html(source?.state||'Non chargé')}${error?' ⚠':''}</span>`;
+    }).join('');
+    const errors=selected.map(p=>{
+      const error=sources.get(p.key)?.attributes?.erreur_derniere_lecture;
+      return error?`<p class="weekly-error">${html(p.label)} : ${html(error)}</p>`:'';
+    }).join('');
+    return this._diagGroup('Programmes horaires natifs · Lecture seule',
+      `<div class="weekly-toolbar">
+        <div class="weekly-choices" role="group" aria-label="Programmes à comparer">${checks}</div>
+        <button type="button" class="weekly-refresh" data-weekly-refresh
+          ${canRefresh?'':'disabled'}>${this._weeklyRefreshing?'Actualisation…':'↻ Actualiser'}</button>
+      </div>
+      <div class="weekly-states">${statuses}</div>
+      <div class="weekly-help">Même échelle 24 h pour chaque jour · une ligne par programme sélectionné.</div>
+      <div class="weekly-chart">${axis}<div class="weekly-days">${days}</div></div>
+      ${errors}
+      ${this._weeklyRefreshError?`<p class="weekly-error">Actualisation : ${html(this._weeklyRefreshError)}</p>`:''}
+      <p class="weekly-note">Horaires exacts lus sur la PAC · aucune modification de la programmation.</p>`);
+  }
+  async _refreshWeeklyPrograms(){
+    if(this._weeklyRefreshing)return;
+    const button=Object.values(this._hass?.states||{}).find(st=>
+      st.entity_id.startsWith('button.') &&
+      (st.attributes?.friendly_name||'').includes('Programmes natifs - Actualiser'));
+    if(!button||button.state==='unavailable')return;
+    this._weeklyRefreshing=true;
+    this._weeklyRefreshError=null;
+    this._render();
+    try {
+      await this._hass.callService('button','press',{entity_id:button.entity_id});
+    } catch(err) {
+      this._weeklyRefreshError=String(err?.message||err);
+    } finally {
+      this._weeklyRefreshing=false;
+      this._render();
+    }
+  }
   _render(){
     // États de déploiement persistants malgré le rafraîchissement des entités HA.
     const prevAlarms=this.shadowRoot.querySelector('details[data-panel="alarms"]')?.open ?? false;
@@ -338,6 +465,14 @@ class PacSynoptiqueCard extends HTMLElement {
     const mode=this._resolveMode();
     const compressor=this._b('compressor');
     const c1=this._circuit(1),c2=this._circuit(2),ecs=this._ecs();
+    // Q3 sélectionne ECS ou le collecteur chauffage, jamais directement C1/C2.
+    const v3vRaw=this._v('v3v');
+    const v3v=v3vRaw==='ECS'?'ecs':v3vRaw==='Chauffage'?'heat':null;
+    const v3vTone=v3v==='ecs'?'heat':v3v==='heat'?(mode==='cool'?'cool':'positive'):'dim';
+    const v3vLabel=v3v==='ecs'?'V3V A · ECS':v3v==='heat'?'V3V B · Chauffage':'V3V indisponible';
+    const c1Flow=c1.active && v3v!=='ecs';
+    const c2Flow=c2.active && v3v!=='ecs';
+    const ecsViaPac=ecs.viaPac && v3v!=='heat';
     const defrost=this._b('defrost');
     // Les animations illustrent une activité confirmée, pas la vitesse réelle du ventilateur.
     const exchangerRunning=compressor===true && (mode==='heat'||mode==='cool');
@@ -372,10 +507,10 @@ class PacSynoptiqueCard extends HTMLElement {
     ].filter(Boolean).join(' · ');
     const statesCount=Object.values(this._ids||{}).filter(id=>!!id && !!this._hass?.states[id]).length;
     const activeCount=(c1.active?1:0)+(c2.active?1:0)+(ecs.viaPac?1:0);
-    const ecsText=ecs.viaPac ? 'Chauffe par PAC' : ecs.withElectric?'Appoint électrique' :
+    const ecsText=ecsViaPac ? 'Chauffe par PAC' : ecs.withElectric?'Appoint électrique' :
       norm(ecs.production).includes('demande')?'Demande en attente':
       norm(ecs.production)==='inactive'?'En attente':'État non confirmé';
-    const ecsTone=ecs.viaPac?'heat':ecs.withElectric?'electric':'idle';
+    const ecsTone=ecsViaPac?'heat':ecs.withElectric?'electric':'idle';
     const gauge=nvalue(this._v('modulation'));
     const air=temp(this._v('outdoor'));
     const pacDelta= nvalue(this._v('flow'))!==null && nvalue(this._v('returnTemp'))!==null ?
@@ -419,6 +554,7 @@ class PacSynoptiqueCard extends HTMLElement {
         [`C${i} — Rafraîchissement Confort`,`coolComfort${i}`,'°C'],[`C${i} — Rafraîchissement Éco`,`coolEco${i}`,'°C']
       ])
     ].map(([name,key,unit])=>this._detailRow(name,key,unit)).join(''));
+    const diagWeekly=this._nativeWeeklyPrograms();
     this.shadowRoot.innerHTML=`<style>
       /* En auto, les palettes proviennent des variables du thème Home Assistant. */
       :host {display:block;
@@ -528,6 +664,23 @@ class PacSynoptiqueCard extends HTMLElement {
       .pac-metrics>div span{display:block;color:var(--sub);font-size:11px}.pac-metrics>div strong{display:block;font-size:17px;margin-top:5px;font-variant-numeric:tabular-nums}
       .pac-bottom{margin-top:8px;font-size:11px;color:var(--sub);line-height:1.5}
       .linksvg{width:100%;height:100%;display:block;overflow:visible}
+      /* Q3 : symbole hydraulique trois voies, lecture seule. */
+      .outlink{position:relative}
+      .v3v-symbol{position:absolute;left:33%;top:50%;transform:translate(-50%,-50%);
+        width:54px;height:54px;pointer-events:none;z-index:2;color:var(--text)}
+      .v3v-symbol svg{display:block;width:100%;height:100%;overflow:visible}
+      .v3v-symbol .port{fill:none;stroke:var(--pipe);stroke-width:7;stroke-linecap:round}
+      .v3v-symbol .body{fill:var(--surface);stroke:var(--panel-line);stroke-width:2}
+      .v3v-symbol .route{fill:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;
+        opacity:0;transition:opacity .4s ease}
+      .v3v-symbol .route-heat{stroke:var(--red)}
+      .v3v-symbol.cooling .route-heat{stroke:var(--blue)}
+      .v3v-symbol .route-ecs{stroke:var(--red)}
+      .v3v-symbol.to-heat .route-heat,.v3v-symbol.to-ecs .route-ecs{opacity:1}
+      .v3v-symbol .valve-core{fill:var(--text);opacity:.65}
+      .v3v-symbol.unknown .body{opacity:.6}
+      :host([data-animate-flows="false"]) .v3v-symbol .route{transition:none}
+      :host([data-show-links="false"]) .v3v-symbol{display:none}
       .vertical-link{display:none}
       .linksvg path.track{stroke:var(--pipe);stroke-width:9;fill:none;stroke-linejoin:round;stroke-linecap:round}
       .linksvg path.live{stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:13 15;animation:flow 1.15s linear infinite}
@@ -577,6 +730,65 @@ class PacSynoptiqueCard extends HTMLElement {
       .diag-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
       .diag-group{min-width:0;background:var(--surface);padding:13px;border-radius:12px;border:1px solid var(--panel-line)}
       .diag-group h4{margin:0 0 10px;font-size:12px;color:var(--text)}
+      .weekly-toolbar{display:flex;gap:9px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:7px}
+      .weekly-choices{display:flex;gap:6px;flex-wrap:wrap}
+      .weekly-choice{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;
+        border:1px solid var(--panel-line);border-radius:9px;cursor:pointer;
+        font-size:12px;color:var(--text);user-select:none}
+      .weekly-choice.active{background:var(--soft);border-color:var(--blue);font-weight:700}
+      .weekly-choice input{accent-color:var(--blue);width:15px;height:15px;margin:0;cursor:pointer}
+      .weekly-refresh{padding:9px 12px;border:1px solid var(--panel-line);border-radius:9px;
+        background:var(--soft);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+      .weekly-refresh:disabled{opacity:.45;cursor:not-allowed}
+      .weekly-states{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;margin:6px 0}
+      .weekly-state.heat{color:var(--red)}
+      .weekly-state.floor{color:var(--blue)}
+      .weekly-state.water{color:var(--green)}
+      .weekly-state.cool{color:#0891b2}
+      .weekly-state.coolfloor{color:#7c3aed}
+      .weekly-help{font-size:11px;color:var(--sub);margin-bottom:13px}
+      .weekly-chart{--weekly-day-width:34px;--weekly-label-width:48px;--weekly-gap:8px;min-width:0}
+      .weekly-axis{display:grid;grid-template-columns:var(--weekly-day-width) var(--weekly-label-width) minmax(0,1fr);
+        column-gap:var(--weekly-gap);margin:0 0 8px;padding:0 8px}
+      .weekly-axis-ticks{display:flex;justify-content:space-between;
+        font-size:10px;color:var(--sub);font-variant-numeric:tabular-nums}
+      .weekly-days{display:grid;gap:7px}
+      .weekly-day-group{display:grid;grid-template-columns:var(--weekly-day-width) minmax(0,1fr);
+        gap:var(--weekly-gap);align-items:start;border:1px solid var(--panel-line);
+        border-radius:9px;padding:9px 8px}
+      .weekly-day-group:nth-child(odd){background:var(--soft)}
+      .weekly-day{font-size:11px;font-weight:700;padding-top:4px}
+      .weekly-day-lanes{display:grid;gap:8px;min-width:0}
+      .weekly-lane{display:grid;grid-template-columns:var(--weekly-label-width) minmax(0,1fr);
+        gap:var(--weekly-gap);align-items:start;min-width:0;--weekly-accent:var(--blue)}
+      .weekly-lane.heat{--weekly-accent:var(--red)}
+      .weekly-lane.floor{--weekly-accent:var(--blue)}
+      .weekly-lane.water{--weekly-accent:var(--green)}
+      .weekly-lane.cool{--weekly-accent:#0891b2}
+      .weekly-lane.coolfloor{--weekly-accent:#7c3aed}
+      .weekly-lane-label{font-size:11px;font-weight:700;color:var(--weekly-accent);
+        padding-top:4px;overflow-wrap:anywhere}
+      .weekly-lane-body{min-width:0}
+      .weekly-track{height:18px;border:1px solid var(--panel-line);border-radius:5px;
+        position:relative;overflow:hidden;background-color:var(--soft);
+        background-image:linear-gradient(to right,var(--panel-line) 1px,transparent 1px);
+        background-size:4.1666667% 100%}
+      .weekly-slot{position:absolute;top:1px;bottom:1px;background:var(--weekly-accent);
+        border-radius:3px;min-width:2px}
+      .weekly-times{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:4px;
+        font-size:10px;font-variant-numeric:tabular-nums;line-height:1.45}
+      .weekly-range{white-space:nowrap;color:var(--text)}
+      .weekly-empty{color:var(--sub)}
+      .weekly-error{color:var(--warn-text);font-size:11px;overflow-wrap:anywhere}
+      .weekly-note{color:var(--sub);font-size:10px;line-height:1.5;margin:12px 0 0}
+      @media(max-width:520px){
+        .weekly-chart{--weekly-day-width:28px;--weekly-label-width:38px;--weekly-gap:4px}
+        .weekly-day-group{padding:8px 4px}
+        .weekly-axis{padding:0 4px}
+        .weekly-axis-ticks{font-size:9px}
+        .weekly-times{font-size:9px;gap:2px 5px}
+        .weekly-lane-label,.weekly-day{font-size:10px}
+      }
       .detail-row{border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px;justify-content:space-between;padding:6px 0;font-size:11px}
       .detail-row:last-child{border:0}.detail-row span{color:var(--sub);min-width:0}.detail-row strong{text-align:right;font-weight:700;max-width:58%;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
       .detail-row strong.na{color:var(--muted)}
@@ -603,6 +815,7 @@ class PacSynoptiqueCard extends HTMLElement {
         .machine .machine-stat{padding-top:5px}
         .pac-art{min-height:85px}
         .inlink,.outlink{display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+        .outlink .v3v-symbol{left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotate(90deg)}
         .inlink .horizontal-link,.outlink .horizontal-link{display:none}
         .inlink .vertical-link,.outlink .vertical-link{display:block;height:100%;width:100%;overflow:hidden}
         .outs{display:flex;flex-direction:column;gap:10px;position:relative;padding-left:22px;margin-top:0}
@@ -929,11 +1142,19 @@ class PacSynoptiqueCard extends HTMLElement {
       @keyframes aerienSignal{
         0%,100%{opacity:1}50%{opacity:.52}
       }
+      /* Aérien v2.9.5 : diamètre constant entre conduites et vanne Q3.
+         vector-effect neutralise la déformation due au viewBox étiré des liaisons. */
       :host([data-layout-style="aerien"]) .linksvg path.track{
-        stroke:var(--aerien-tube);stroke-width:5;opacity:.8}
+        stroke:var(--aerien-tube);stroke-width:10;opacity:.9;
+        vector-effect:non-scaling-stroke}
       :host([data-layout-style="aerien"]) .linksvg path.live{
-        stroke-width:2.5;stroke-dasharray:5 15;
+        stroke-width:10;stroke-dasharray:8 15;
+        vector-effect:non-scaling-stroke;
         animation:flow 2.25s linear infinite}
+      :host([data-layout-style="aerien"]) .v3v-symbol .port{
+        stroke-width:10;vector-effect:non-scaling-stroke}
+      :host([data-layout-style="aerien"]) .v3v-symbol .route{
+        stroke-width:10;vector-effect:non-scaling-stroke}
       :host([data-layout-style="aerien"]) details{
         border:1px solid var(--aerien-border);border-radius:15px;
         padding:12px 15px;margin-top:9px;background:var(--aerien-panel)}
@@ -952,6 +1173,21 @@ class PacSynoptiqueCard extends HTMLElement {
           grid-template-columns:minmax(130px,.9fr) 22px minmax(165px,1fr) 28px minmax(240px,1.5fr)}
         :host([data-layout-style="aerien"]) .machine,
         :host([data-layout-style="aerien"]) .pac{padding:12px 10px}
+      }
+      /* Le symbole reste lisible en portrait Aérien, sans branche fictive. */
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink{
+        display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink .horizontal-link{display:none}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink .vertical-link{display:block}
+      :host([data-layout-style="aerien"][data-orientation="portrait"]) .outlink .v3v-symbol{
+        left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotate(90deg)}
+      @container (max-width:800px){
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink{
+          display:block;flex:0 0 56px;height:56px;align-self:stretch;overflow:hidden}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink .horizontal-link{display:none}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink .vertical-link{display:block}
+        :host([data-layout-style="aerien"][data-orientation="auto"]) .outlink .v3v-symbol{
+          left:50%;top:50%;width:40px;height:40px;transform:translate(-50%,-50%) rotate(90deg)}
       }
       /* Portrait forcé ou automatique : aucun faux collecteur sur les cartes. */
       :host([data-layout-style="aerien"][data-orientation="portrait"]) .schematic{
@@ -1022,7 +1258,8 @@ class PacSynoptiqueCard extends HTMLElement {
           ${compressor===true?'<path class="live active" d="M0 220 H100"/>':''}</svg><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${compressor===true?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
         <section class="pac"><div class="mini-head">PAC · Module hydraulique</div>
           <div class="pac-head-status">${chip(modeText,mode==='heat'?'heat':mode==='cool'?'cool':'dim')}
-          ${chip(clean(this._v('pacState')||'État PAC indisponible',36),compressor===true?'positive':'dim')}</div>
+          ${chip(clean(this._v('pacState')||'État PAC indisponible',36),compressor===true?'positive':'dim')}
+          ${chip(v3vLabel,v3vTone)}</div>
           <div class="pac-art"><div class="exchanger ${exchangerRunning?'running':'standby'}" aria-label="Représentation symbolique des échanges thermiques, animation lorsque le compresseur fonctionne">
             <div class="exch-col ${mode==='cool'?'hot':''}"><svg viewBox="0 0 78 100" aria-hidden="true"><path d="M5 6H64Q74 6 74 16V22Q74 31 64 31H15Q5 31 5 41V46Q5 54 15 54H64Q74 54 74 64V69Q74 77 64 77H15Q5 77 5 88V95"/></svg><svg class="exch-aerien" viewBox="0 0 78 100" aria-hidden="true">
               <rect class="exch-frame" x="7" y="4" width="64" height="92" rx="10"/>
@@ -1042,9 +1279,19 @@ class PacSynoptiqueCard extends HTMLElement {
         </section>
         <div class="outlink" aria-hidden="true"><svg class="linksvg horizontal-link" viewBox="0 0 100 440" preserveAspectRatio="none">
           <path class="track" d="M0 220H33V72H100 M33 220H100 M33 220V368H100"/>
-          ${c1.active?`<path class="live ${branchTone(c1)}" d="M0 220H33V72H100"/>`:''}
-          ${c2.active?`<path class="live ${branchTone(c2)}" d="M0 220H33H100"/>`:''}
-          ${ecs.viaPac?'<path class="live heat" d="M0 220H33V368H100"/>':''}</svg><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${(c1.active||c2.active||ecs.viaPac)?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
+          ${c1Flow?`<path class="live ${branchTone(c1)}" d="M0 220H33V72H100"/>`:''}
+          ${c2Flow?`<path class="live ${branchTone(c2)}" d="M0 220H33H100"/>`:''}
+          ${ecsViaPac?'<path class="live heat" d="M0 220H33V368H100"/>':''}</svg>
+          <div class="v3v-symbol ${v3v==='ecs'?'to-ecs':v3v==='heat'?'to-heat':'unknown'} ${mode==='cool'?'cooling':''}"
+            role="img" aria-label="${html(v3vLabel)}" title="${html(v3vLabel)}">
+            <svg viewBox="0 0 60 60" aria-hidden="true">
+              <path class="port" d="M3 30H30 M30 3V57"/>
+              <circle class="body" cx="30" cy="30" r="18"/>
+              <path class="route route-heat" d="M14 30H30V13"/>
+              <path class="route route-ecs" d="M14 30H30V47"/>
+              <circle class="valve-core" cx="30" cy="30" r="3"/>
+            </svg>
+          </div><svg class="linksvg vertical-link" viewBox="0 0 100 100" preserveAspectRatio="none"><path class="track" d="M50 0 V100"/>${(c1Flow||c2Flow||ecsViaPac)?'<path class="live active" d="M50 0 V100"/>':''}</svg></div>
         <div class="outs">${circHtml(c1)}${circHtml(c2)}
           <section class="output-card ${ecsTone}" aria-label="Eau chaude sanitaire">
             <div class="out-top"><div class="tank-mini" aria-hidden="true"></div><div class="out-head">
@@ -1052,7 +1299,7 @@ class PacSynoptiqueCard extends HTMLElement {
               <span class="state-dot ${ecsTone}"></span></div>
             <div class="out-values"><div><span>Température ballon</span><strong>${html(temp(ecs.tempBallon))}</strong></div>
               <div><span>Consigne affichée</span><strong>${html(temp(ecs.target))}</strong></div></div>
-            <div class="out-foot">${chip(ecs.pump===true?'Pompe active':ecs.pump===false?'Pompe arrêtée':'Pompe inconnue',ecs.pump===true?'positive':'dim')}
+            <div class="out-foot">${chip(v3v?v3vLabel:ecs.pump===true?'Sortie Q3 active':ecs.pump===false?'Sortie Q3 inactive':'Sortie Q3 inconnue',v3v?v3vTone:ecs.pump===true?'positive':'dim')}
               ${ecs.withElectric?chip('Appoint électrique actif','warning'):''}</div>
           </section>
         </div>
@@ -1065,10 +1312,21 @@ class PacSynoptiqueCard extends HTMLElement {
       ${this._config.show_diagnostics!==false?`<details data-panel="diagnostics" ${prevDetails?'open':''}>
         <summary>Diagnostics et capteurs complémentaires · ${statesCount} entités reconnues</summary>
         <p class="details-note">Lecture seule. « — » signifie : entité absente, désactivée, inconnue ou non publiée par BSB-LAN. Les températures de départ cibles des circuits ne sont pas des mesures.</p>
-        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}</div>
+        <div class="diag-grid">${diagComp}${diagPac}${diagCircs}${diagWeekly}</div>
       </details>`:''}
 
     </div></ha-card>`;
+    this.shadowRoot.querySelectorAll('[data-program-choice]').forEach(input=>{
+      input.addEventListener('change',()=>{
+        const key=input.dataset.programChoice;
+        if(input.checked)this._visiblePrograms.add(key);
+        else if(this._visiblePrograms.size>1)this._visiblePrograms.delete(key);
+        this._render();
+      });
+    });
+    this.shadowRoot.querySelector('[data-weekly-refresh]')?.addEventListener(
+      'click',()=>this._refreshWeeklyPrograms()
+    );
   }
 }
 /**

@@ -389,9 +389,10 @@ class AlfeaRuntimeMonitor:
 
         Parameter 8003 is a logical ECS demand/state and can remain at
         ``Charge...`` while the compressor is actually serving space cooling.
-        The 11-Aug-2026 bus captures showed that a genuine PAC DHW charge is
-        characterised by the physical ECS pump 8820 being ON together with the
-        compressor. 8821 independently proves electric backup operation.
+        The Q3 output 8820 being ON together with the compressor supports
+        PAC DHW charging. On diverter-equipped units (BSB 5731 = 2), 8820
+        commands the ECS position of the three-way valve, not a pump.
+        8821 independently indicates electric backup operation.
 
         Using the physical outputs first also removes the brief false
         ``Chauffe par PAC`` state caused by sequential MQTT updates at a

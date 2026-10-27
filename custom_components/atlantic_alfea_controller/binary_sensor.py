@@ -173,7 +173,7 @@ class AlfeaBinaryProxy(BinarySensorEntity):
         entity_category: EntityCategory | None = None,
     ) -> None:
         self.hass = hass
-        self._source = entry.data[key]
+        self._source = entry.data.get(key)
         self._attr_name = name
         self._attr_icon = icon
         self._attr_device_class = device_class

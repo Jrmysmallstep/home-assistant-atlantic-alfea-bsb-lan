@@ -21,27 +21,35 @@ _EMPTY = {"", "---", "--", "aucun", "aucun défaut", "pas de défaut", "no fault
 
 
 def parse_fault_history(data: dict[str, dict]) -> list[dict[str, str]]:
-    """Preserve both raw fields per historical slot; never fabricate a fault code.
+    """Decode ten date/code pairs; 65535 and --- indicate an empty slot.
 
-    The device-specific meaning of each odd/even field still needs verification.
+    BSB 6800, 6802, ... hold DATETIME; 6801, 6803, ... hold fault ENUM.
+    A malformed read raises rather than pretending the history is empty.
     """
     result = []
     for index in range(10):
-        first, second = 6800 + 2 * index, 6801 + 2 * index
-        parts = []
-        for parameter in (first, second):
-            item = data.get(str(parameter))
-            if not isinstance(item, dict) or str(item.get("error")) != "0":
-                raise ValueError(f"Paramètre historique {parameter} non disponible")
-            value = str(item.get("value") if item.get("value") is not None else "").strip()
-            desc = str(item.get("desc") or "").strip()
-            parts.append({"parametre": str(parameter), "valeur": value, "description": desc})
-        if all(p["valeur"].lower() in _EMPTY and p["description"].lower() in _EMPTY for p in parts):
+        date_param, code_param = 6800 + 2 * index, 6801 + 2 * index
+        date_item = data.get(str(date_param))
+        code_item = data.get(str(code_param))
+        if not isinstance(date_item, dict) or not isinstance(code_item, dict):
+            raise ValueError(f"Entrée historique {index + 1} manquante")
+        if str(date_item.get("error")) != "0" or str(code_item.get("error")) != "0":
+            raise ValueError(f"Erreur lecture historique {index + 1}")
+        if date_item.get("dataType_name") != "DATETIME" or code_item.get("dataType_name") != "ENUM":
+            raise ValueError(f"Types inattendus pour entrée {index + 1}")
+        date = str(date_item.get("value") or "").strip()
+        code = str(code_item.get("value") or "").strip()
+        description = str(code_item.get("desc") or "").strip()
+        if date in ("", "---") and code == "65535" and description in ("", "---"):
             continue
-        result.append({"rang": str(index + 1), "parametres": f"{first}/{second}",
-                       "premier": parts[0]["valeur"], "second": parts[1]["valeur"],
-                       "description_premier": parts[0]["description"],
-                       "description_second": parts[1]["description"]})
+        if date in ("", "---") or code in ("", "65535", "---"):
+            raise ValueError(f"Entrée historique {index + 1} incohérente")
+        result.append({
+            "rang": str(index + 1),
+            "date": date,
+            "code": code,
+            "description": "" if description == "---" else description,
+        })
     return result
 
 

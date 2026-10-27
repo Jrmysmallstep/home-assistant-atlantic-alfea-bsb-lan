@@ -40,7 +40,7 @@ WEEKDAYS = load_literal("WEEKDAYS")
 parameter_for_day = load_function("parameter_for_day", {"WEEKDAYS": WEEKDAYS})
 parse_timeprog = load_function(
     "parse_timeprog",
-    {"_SLOT_RE": re.compile(r"(\\d{2}:\\d{2}|##:##)-(\\d{2}:\\d{2}|##:##)")},
+    {"_SLOT_RE": re.compile(r"(\d{2}:\d{2}|##:##)-(\d{2}:\d{2}|##:##)")},
 )
 
 

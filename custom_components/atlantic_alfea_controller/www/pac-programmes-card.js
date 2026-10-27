@@ -1,5 +1,5 @@
 /**
- * Programmes PAC v0.1.0 — lecture seule des programmes horaires natifs BSB-LAN.
+ * Programmes PAC v0.2.0 — lecture seule des programmes horaires natifs BSB-LAN.
  * Les barres représentent les créneaux natifs ; aucun horaire n'est simulé.
  */
 (() => {
@@ -10,7 +10,9 @@
   const PROGRAMS = [
     {key:'chauffage_c1',label:'Chauffage RDC',base:'501',color:'var(--warning-color,#e6a23c)'},
     {key:'chauffage_c2',label:'Chauffage étage',base:'521',color:'var(--info-color,#039be5)'},
-    {key:'ecs',label:'Eau chaude sanitaire',base:'561',color:'var(--success-color,#43a047)'}
+    {key:'ecs',label:'Eau chaude sanitaire',base:'561',color:'var(--success-color,#43a047)'},
+    {key:'rafraichissement_c1',label:'Rafraîchissement RDC',base:'11000',color:'#0891b2'},
+    {key:'rafraichissement_c2',label:'Rafraîchissement étage',base:'11010',color:'#7c3aed'}
   ];
   const DAYS = [
     ['lundi','Lundi'],['mardi','Mardi'],['mercredi','Mercredi'],

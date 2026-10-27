@@ -62,6 +62,15 @@ def parse_timeprog(value: str) -> list[dict[str, str]]:
     return result
 
 
+def parameter_for_day(key: str, base: str, index: int) -> str:
+    """Return the exact BSB-LAN JSON parameter for a weekday (Monday = 0)."""
+    if not 0 <= index < len(WEEKDAYS):
+        raise ValueError(f"Jour invalide : {index}")
+    if key in ("rafraichissement_c1", "rafraichissement_c2"):
+        return str(int(base) + index)
+    return base if index == 0 else f"{base}.{index}"
+
+
 @dataclass
 class ProgramSnapshot:
     """Last successful import and the most recent refresh status."""
@@ -115,11 +124,7 @@ class WeeklyProgramImporter:
                 days: dict[str, list[dict[str, str]]] = {}
                 try:
                     for index, weekday in enumerate(WEEKDAYS):
-                        parameter = (
-                            str(int(base) + index)
-                            if key.startswith("rafraichissement_")
-                            else base if index == 0 else f"{base}.{index}"
-                        )
+                        parameter = parameter_for_day(key, base, index)
                         days[weekday] = await self._read_day(session, parameter)
                         # Avoid a burst of 35 consecutive requests on the BSB bus.
                         await asyncio.sleep(0.2)

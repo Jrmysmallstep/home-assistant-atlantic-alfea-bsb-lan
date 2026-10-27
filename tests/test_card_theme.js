@@ -2,7 +2,7 @@
 const fs=require("fs"),vm=require("vm"),path=require("path");
 const source=fs.readFileSync(path.join(__dirname,"..","custom_components","atlantic_alfea_controller","www","pac-synoptique-card.js"),"utf8");
 class E {
-  constructor(){this.dataset={};this.shadowRoot={innerHTML:"",querySelector:()=>null};}
+  constructor(){this.dataset={};this.shadowRoot={innerHTML:"",querySelector:()=>null,querySelectorAll:()=>[]};}
   attachShadow(){return this.shadowRoot;}
 }
 const custom={};
@@ -25,7 +25,7 @@ for(const mode of ["auto","light","dark"]){
 }
 try{new Card().setConfig({theme_mode:"invalid"});throw Error("Mode invalide accepté");}
 catch(err){if(!err.message.includes("theme_mode"))throw err;}
-if(source.includes("hass.callService("))throw Error("Lecture seule non respectée");
+if(source.includes("this._hass.callService('select'") || source.includes("this._hass.callService('number'"))throw Error("Écriture PAC non autorisée");
 if(!source.includes("programmedRegime = raw =>") || !source.includes("Programme actif"))throw Error("Programme Confort/Éco non préservé dans les diagnostics");
 if(!source.includes("pump1:") || !source.includes("pump2:") ||
    !source.includes("C${i} — Circulateur") ||

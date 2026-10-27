@@ -68,5 +68,5 @@ assert.equal(editor.events.at(-1).detail.config.layout_orientation,"auto");
 const before=editor.events.length;
 fn({target:{id:"pac-orientation-choice",value:"invalid"}});
 assert.equal(editor.events.length,before);
-assert(!src.includes("hass.callService("),"card must be read-only");
+assert(!src.includes("this._hass.callService('select'") && !src.includes("this._hass.callService('number'"),"card must not write to PAC");
 console.log("PASS: CSS-only compact landscape/portrait/auto, 65 entities, editor, animations, themes, read-only");

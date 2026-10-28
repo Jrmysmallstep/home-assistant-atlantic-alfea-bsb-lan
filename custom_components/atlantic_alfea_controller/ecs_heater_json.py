@@ -7,7 +7,7 @@ import logging
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
@@ -78,6 +78,7 @@ async def async_start_heater_polling(hass: HomeAssistant, entry: ConfigEntry):
             if monitor is not None:
                 await monitor.async_update()
 
+    @callback
     def on_interval(_now) -> None:
         hass.async_create_task(refresh())
 

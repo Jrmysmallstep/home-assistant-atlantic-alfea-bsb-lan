@@ -6,7 +6,7 @@ Cette intégration communautaire relie **Home Assistant** à une **pompe à chal
 
 Elle s'adresse aux personnes qui souhaitent suivre leur installation au quotidien, ajuster certaines consignes et mieux comprendre le fonctionnement de leur PAC, **sans remplacer son programmateur d'origine**.
 
-**Version stable : V1.5.26** · **Synoptique : V2.9.7** · Projet non officiel
+**Version stable : V1.5.27** · **Synoptique : V2.9.7** · Projet non officiel
 
 ## 📸 Aperçu
 
@@ -64,12 +64,13 @@ Les horaires peuvent être visualisés dans le synoptique ou dans la carte dédi
 
 **Important : les programmes horaires sont en lecture seule.** Home Assistant ne réécrit pas les plages horaires de la PAC. Leur actualisation est déclenchée manuellement et utilise l'interface HTTP JSON de BSB-LAN, sans ajouter 35 paramètres à la liste MQTT.
 
-## 🚀 Nouveautés de la V1.5.26
+## 🚀 Nouveautés de la V1.5.27
 
 - État de l'appoint électrique ECS (`8821`) actualisé par JSON et badge dédié dans le ballon ECS, sans doublon V3V.
 - Historique de 10 défauts (`6800–6819`) dans la section **Alarmes et surveillance**.
 - Aucun nouveau paramètre dans la liste MQTT : ces fonctions nécessitent l'option **Adresse BSB-LAN JSON**.
 - Les tests réels ont confirmé un appoint **inactif** et un historique **vide** ; les états actifs et les défauts réels restent à observer.
+- Correctif de stabilité.
 
 ### Évolutions déjà présentes en V1.5.25
 

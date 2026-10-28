@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.5.27 — Correctif thread safety
+
+- Les rappels planifiés sur la boucle de Home Assistant sont désormais marqués
+  `@callback` : retours MQTT pompes C1/C2 et vanne Q3 (`__init__.py`),
+  relecture du régime toutes les 60 s (`climate.py`), lecture JSON du
+  chauffe-eau ECS (`ecs_heater_json.py`) et historique des défauts
+  (`fault_history_json.py`).
+- Supprime les erreurs « calls async_dispatcher_send / hass.async_create_task
+  from a thread other than the event loop » et les avertissements
+  « coroutine … was never awaited » signalés par Home Assistant.
+- Aucun changement fonctionnel ni d'écriture PAC.
+
+
 ## 1.5.25 — Programmes horaires natifs et synoptique V2.9.7
 
 Version stable regroupant les améliorations validées pendant les six bêtas V1.5.25 :

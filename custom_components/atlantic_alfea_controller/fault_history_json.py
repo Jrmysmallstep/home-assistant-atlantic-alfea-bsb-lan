@@ -6,7 +6,7 @@ import logging
 from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
@@ -91,6 +91,7 @@ async def async_start_fault_history(hass: HomeAssistant, entry: ConfigEntry):
                 cache[entry.entry_id] = snapshot
                 async_dispatcher_send(hass, f"{DOMAIN}_fault_history_{entry.entry_id}")
 
+    @callback
     def tick(_now):
         hass.async_create_task(refresh())
 
